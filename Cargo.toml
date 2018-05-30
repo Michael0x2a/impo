@@ -1,0 +1,9 @@
+[package]
+name = "impo"
+version = "0.1.0"
+authors = ["Michael Lee <michael.lee.0x2a@gmail.com>"]
+
+[dependencies]
+failure = "0.1.1"
+failure_derive = "0.1.1"
+snowflake = "1.2"
