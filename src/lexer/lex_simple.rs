@@ -78,7 +78,14 @@ pub fn match_identifier_or_keyword(stream: &mut CharStream, c: char) -> Option<T
         "and" => TokenKind::And,
 
         // Other keywords
+        "if" => TokenKind::If,
+        "elif" => TokenKind::Elif,
+        "else" => TokenKind::Else,
         "for" => TokenKind::For,
+        "from" => TokenKind::From,
+        "to" => TokenKind::To,
+        "foreach" => TokenKind::Foreach,
+        "in" => TokenKind::In,
         "while" => TokenKind::While,
         "return" => TokenKind::Return,
         "panic" => TokenKind::Panic,

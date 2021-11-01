@@ -90,7 +90,7 @@ class ArrayList[T] implements List[T]:
     _array: Array[T]
     _length: Int
 
-    constructor():
+    fn constructor():
         this._array = Array[T](8)
         this._length = 0
 

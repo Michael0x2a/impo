@@ -50,7 +50,14 @@ pub enum TokenKind {
     And,
 
     // Keywords
+    If,
+    Elif,
+    Else,
     For,
+    From,
+    To,
+    Foreach,
+    In,
     While,
     Return,
     Panic,
