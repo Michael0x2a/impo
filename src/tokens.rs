@@ -15,6 +15,7 @@ pub enum TokenKind {
     Minus,
     Multiply,
     Divide,
+    Percent,
     Equals,
     NotEquals,
     LessThanEquals,
@@ -32,8 +33,15 @@ pub enum TokenKind {
 
     // Literals and identifiers
     StringLiteral(String),
-    IntLiteral(String),
-    FloatLiteral(String),
+    IntLiteral{
+        base: usize,
+        digits: String
+    },
+    FloatLiteral{
+        integral_digits: String,
+        fractional_digits: String,
+        power: String,
+    },
     Identifier(String),
 
     // Operators (that can also be confused with identifiers)
@@ -71,6 +79,8 @@ impl AsRef<TokenKind> for TokenKind {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct Position {
     pub lineno: usize,
+
+    // column and offset are w.r.t. characters, not bytes
     pub column: usize,
     pub offset: usize,
 }
