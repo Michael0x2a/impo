@@ -1,6 +1,7 @@
 use super::char_stream::CharStream;
 use super::core::LexerError;
 use crate::tokens::*;
+use crate::values::{IntLiteral, FloatLiteral};
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
 enum NumState {
@@ -20,7 +21,7 @@ fn make_bad_initial_zero_err(nc: char, pos: Position) -> Result<Option<TokenKind
 
 fn make_nonstandard_base_into_floating_point_err(pos: Position) -> Result<Option<TokenKind>, LexerError> {
     Err(LexerError{
-        message: format!("Cannot prefix floating point numbers with 0x, 0o, or 0b"),
+        message: "Cannot prefix floating point numbers with 0x, 0o, or 0b".to_owned(),
         position: pos,
     })
 }
@@ -32,6 +33,7 @@ fn make_bad_sci_notation_transition_err(seq: &str, pos: Position) -> Result<Opti
     })
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn match_number(stream: &mut CharStream, c: char) -> Result<Option<TokenKind>, LexerError> {
     if !is_digit(c) {
         return Ok(None)
@@ -146,16 +148,16 @@ pub fn match_number(stream: &mut CharStream, c: char) -> Result<Option<TokenKind
     }
 
     let kind = if fractional_digits.is_empty() {
-        TokenKind::IntLiteral{
+        TokenKind::IntLiteral(IntLiteral{
             base: base,
-            digits: integral_digits,
-        }
+            digits: integral_digits.into(),
+        })
     } else {
-        TokenKind::FloatLiteral{
-            integral_digits: integral_digits,
-            fractional_digits: fractional_digits,
-            power: sci_notation_digits,
-        }
+        TokenKind::FloatLiteral(FloatLiteral{
+            integral_digits: integral_digits.into(),
+            fractional_digits: fractional_digits.into(),
+            power: sci_notation_digits.into(),
+        })
     };
     Ok(Some(kind))
 }
@@ -171,33 +173,19 @@ fn is_acceptable_digit(c: char, base: usize) -> bool {
 }
 
 fn is_digit(c: char) -> bool {
-    match c {
-        '0'..='9' => true,
-        _ => false,
-    }
+    matches!(c, '0'..='9')
 }
 
 fn is_hex_digit(c: char) -> bool {
-    match c {
-        '0'..='9' => true,
-        'a'..='f' => true,
-        'A'..='F' => true,
-        _ => false,
-    }
+    matches!(c, '0'..='9' | 'a'..='f' | 'A'..='F')
 }
 
 fn is_octal_digit(c: char) -> bool {
-    match c {
-        '0'..='7' => true,
-        _ => false,
-    }
+    matches!(c, '0'..='7')
 }
 
 fn is_binary_digit(c: char) -> bool {
-    match c {
-        '0'..='1' => true,
-        _ => false,
-    }
+    matches!(c, '0'..='1')
 }
 
 #[cfg(test)]
@@ -221,51 +209,51 @@ mod tests {
                 "1.3e-12345 ",
             ),
             vec![
-                TokenKind::IntLiteral{
+                TokenKind::IntLiteral(IntLiteral{
                     base: 10,
-                    digits: "0".to_owned(),
-                },
-                TokenKind::FloatLiteral{
-                    integral_digits: "0".to_owned(),
-                    fractional_digits: "0".to_owned(),
-                    power: "".to_owned(),
-                },
-                TokenKind::IntLiteral{
+                    digits: "0".into(),
+                }),
+                TokenKind::FloatLiteral(FloatLiteral{
+                    integral_digits: "0".into(),
+                    fractional_digits: "0".into(),
+                    power: "".into(),
+                }),
+                TokenKind::IntLiteral(IntLiteral{
                     base: 10,
-                    digits: "1234567890".to_owned(),
-                },
-                TokenKind::IntLiteral{
+                    digits: "1234567890".into(),
+                }),
+                TokenKind::IntLiteral(IntLiteral{
                     base: 16,
-                    digits: "abcdef19".to_owned(),
-                },
-                TokenKind::IntLiteral{
+                    digits: "abcdef19".into(),
+                }),
+                TokenKind::IntLiteral(IntLiteral{
                     base: 8,
-                    digits: "12345670".to_owned(),
-                },
-                TokenKind::IntLiteral{
+                    digits: "12345670".into(),
+                }),
+                TokenKind::IntLiteral(IntLiteral{
                     base: 2,
-                    digits: "10101010".to_owned(),
-                },
-                TokenKind::FloatLiteral{
-                    integral_digits: "0".to_owned(),
-                    fractional_digits: "12345678".to_owned(),
-                    power: "".to_owned(),
-                },
-                TokenKind::FloatLiteral{
-                    integral_digits: "123".to_owned(),
-                    fractional_digits: "456789".to_owned(),
-                    power: "".to_owned(),
-                },
-                TokenKind::FloatLiteral{
-                    integral_digits: "1".to_owned(),
-                    fractional_digits: "3".to_owned(),
-                    power: "123456".to_owned(),
-                },
-                TokenKind::FloatLiteral{
-                    integral_digits: "1".to_owned(),
-                    fractional_digits: "3".to_owned(),
-                    power: "-12345".to_owned(),
-                },
+                    digits: "10101010".into(),
+                }),
+                TokenKind::FloatLiteral(FloatLiteral{
+                    integral_digits: "0".into(),
+                    fractional_digits: "12345678".into(),
+                    power: "".into(),
+                }),
+                TokenKind::FloatLiteral(FloatLiteral{
+                    integral_digits: "123".into(),
+                    fractional_digits: "456789".into(),
+                    power: "".into(),
+                }),
+                TokenKind::FloatLiteral(FloatLiteral{
+                    integral_digits: "1".into(),
+                    fractional_digits: "3".into(),
+                    power: "123456".into(),
+                }),
+                TokenKind::FloatLiteral(FloatLiteral{
+                    integral_digits: "1".into(),
+                    fractional_digits: "3".into(),
+                    power: "-12345".into(),
+                }),
             ].into_iter()
         )
     }

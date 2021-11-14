@@ -49,20 +49,20 @@ impl<'a> CharStream<'a> {
     pub fn read_while(&mut self, filter: fn(char) -> bool) -> String {
         let mut out = String::new();
         while let Some(c) = self.read_if(filter) {
-            out.push(c)
+            out.push(c);
         }
         out
     }
 
     pub fn skip_while(&mut self, filter: fn(char) -> bool) -> usize {
         let mut num_skipped = 0;
-        while let Some(_) = self.read_if(filter) { 
+        while self.read_if(filter).is_some() { 
             num_skipped += 1;
         }
         num_skipped
     }
 
     pub fn position(&self) -> Position {
-        self.position.clone()
+        self.position
     }
 }

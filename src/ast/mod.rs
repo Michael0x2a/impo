@@ -1,7 +1,7 @@
-mod primitives;
-mod exprs;
-mod types;
-mod stmts;
+pub mod primitives;
+pub mod exprs;
+pub mod types;
+pub mod stmts;
 
 pub use self::primitives::*;
 pub use self::exprs::*;

@@ -1,14 +1,11 @@
 use anyhow::Result;
-use impo::{lexer::Lexer, tokens::TokenKind};
+use impo::{lexer::lex, parser::parse};
 
 fn main() -> Result<()> {
-    let mut lexer = Lexer::new("# test");
-    loop {
-        let tok = lexer.next_token()?;
-        println!("{:?}", tok);
-        if tok.kind == TokenKind::EndOfFile {
-            break;
-        }
+    let tokens = lex("# test")?;
+    let program = parse(&tokens)?;
+    for stmt in program {
+        println!("{:?}", stmt);
     }
     Ok(())
 }

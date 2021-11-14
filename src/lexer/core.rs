@@ -10,6 +10,19 @@ use super::lex_strings::*;
 
 use crate::tokens::*;
 
+pub fn lex(text: impl AsRef<str>) -> Result<Vec<Token>, LexerError> {
+    let mut lexer = Lexer::new(text.as_ref());
+    let mut tokens = Vec::new();
+    loop {
+        let tok = lexer.next_token()?;
+        if tok.kind == TokenKind::EndOfFile {
+            break;
+        }
+        tokens.push(tok);
+    }
+    Ok(tokens)
+}
+
 #[derive(thiserror::Error, Debug)]
 pub struct LexerError {
     pub position: Position,
@@ -51,23 +64,22 @@ impl<'a> Lexer<'a> {
         }
 
         let start = self.stream.position();
-        let c= match self.stream.read_char() {
-            Some(c) => c,
-            None => {
-                // Handle the case where a file ends without a newline
-                // (match_newline won't have an opportunity to detect
-                // this case)
-                let kind = if self.indent_level > 0 {
-                    self.indent_level -= 1;
-                    TokenKind::Unindent
-                } else {
-                    TokenKind::EndOfFile
-                };
-                return Ok(Token{
-                    kind: kind,
-                    position: start,
-                })
-            }
+        let c= if let Some(c) = self.stream.read_char() {
+            c
+        } else {
+            // Handle the case where a file ends without a newline
+            // (match_newline won't have an opportunity to detect
+            // this case)
+            let kind = if self.indent_level > 0 {
+                self.indent_level -= 1;
+                TokenKind::Unindent
+            } else {
+                TokenKind::EndOfFile
+            };
+            return Ok(Token{
+                kind: kind,
+                position: start,
+            })
         };
 
         let kind = if let Some(kind) = self.match_parentheses(c) {
@@ -83,6 +95,7 @@ impl<'a> Lexer<'a> {
         } else if let Some(kind) = match_string(&mut self.stream, c)? {
             kind
         } else if let Some(tokens) = self.match_newline(c, start)? {
+            #[allow(clippy::indexing_slicing)]
             for window in tokens.windows(2) {
                 let curr = &window[0];
                 let next = &window[1];
@@ -94,7 +107,7 @@ impl<'a> Lexer<'a> {
 
             let fatal_err = LexerError{
                 position: start,
-                message: format!("Unexpected fatal error with newline/indent parser"),
+                message: "Unexpected fatal error with newline/indent parser".to_owned(),
             };
 
             self.queued.push_back(match tokens.last() {
@@ -167,33 +180,30 @@ impl<'a> Lexer<'a> {
                 } else if sc == 't' {
                     return Err(LexerError{
                         position: self.stream.position(),
-                        message: format!("Tabs cannot be used as an indentation char"),
+                        message: "Tabs cannot be used as an indentation char".to_owned(),
                     })
                 }
             }
 
-            line_end_char = match self.stream.peek_char() {
-                Some(nc) => {
-                    if is_newline(nc) {
-                        let _ = self.stream.read_char();
-                        nc
-                    } else {
-                        break;
-                    }
+            line_end_char = if let Some(nc) = self.stream.peek_char() {
+                if is_newline(nc) {
+                    let _ = self.stream.read_char();
+                    nc
+                } else {
+                    break;
                 }
-                None => {
-                    // We are at the end of the file. Push any pending
-                    // unindent tokens.
-                    let unindent_tok = Token{
-                        kind: TokenKind::Unindent,
-                        position: line_start,
-                    };
-                    for _ in 0..self.indent_level {
-                        acc.push(unindent_tok.clone());
-                    }
-                    self.indent_level = 0;
-                    return Ok(Some(acc));
+            } else {
+                // We are at the end of the file. Push any pending
+                // unindent tokens.
+                let unindent_tok = Token{
+                    kind: TokenKind::Unindent,
+                    position: line_start,
+                };
+                for _ in 0..self.indent_level {
+                    acc.push(unindent_tok.clone());
                 }
+                self.indent_level = 0;
+                return Ok(Some(acc));
             };
 
             // This line ended up being empty -- reset
@@ -255,25 +265,25 @@ mod tests {
                 "        foo8\n",
             ),
             vec![
-                TokenKind::Identifier("foo1".to_owned()),
+                TokenKind::Atom("foo1".into()),
                 TokenKind::Indent,
-                TokenKind::Identifier("foo2".to_owned()),
+                TokenKind::Atom("foo2".into()),
                 TokenKind::Newline,
-                TokenKind::Identifier("foo3".to_owned()),
+                TokenKind::Atom("foo3".into()),
                 TokenKind::Indent,
-                TokenKind::Identifier("foo4".to_owned()),
+                TokenKind::Atom("foo4".into()),
                 TokenKind::Unindent,
                 TokenKind::Unindent,
-                TokenKind::Identifier("foo5".to_owned()),
+                TokenKind::Atom("foo5".into()),
                 TokenKind::Indent,
-                TokenKind::Identifier("foo6".to_owned()),
+                TokenKind::Atom("foo6".into()),
                 TokenKind::Newline,
                 TokenKind::Newline,
                 TokenKind::Newline,
-                TokenKind::Identifier("foo7".to_owned()),
+                TokenKind::Atom("foo7".into()),
                 TokenKind::Newline,
                 TokenKind::Indent,
-                TokenKind::Identifier("foo8".to_owned()),
+                TokenKind::Atom("foo8".into()),
                 TokenKind::Unindent,
                 TokenKind::Unindent,
             ].iter(),
@@ -311,11 +321,11 @@ mod tests {
         ];
 
         let expected = vec![
-            TokenKind::Identifier("foo1".to_owned()),
+            TokenKind::Atom("foo1".into()),
             TokenKind::Indent,
-            TokenKind::Identifier("foo2".to_owned()),
+            TokenKind::Atom("foo2".into()),
             TokenKind::Indent,
-            TokenKind::Identifier("foo3".to_owned()),
+            TokenKind::Atom("foo3".into()),
             TokenKind::Unindent,
             TokenKind::Unindent,
         ];
@@ -343,7 +353,7 @@ mod tests {
             ),
             vec![
                 Token{
-                    kind: TokenKind::Identifier("foo1".to_owned()),
+                    kind: TokenKind::Atom("foo1".into()),
                     position: Position::new(0, 0, 0),
                 },
                 Token{
@@ -351,7 +361,7 @@ mod tests {
                     position: Position::new(0, 4, 4),
                 },
                 Token{
-                    kind: TokenKind::Identifier("foo2".to_owned()),
+                    kind: TokenKind::Atom("foo2".into()),
                     position: Position::new(1, 4, 9),
                 },
                 Token{
@@ -359,7 +369,7 @@ mod tests {
                     position: Position::new(1, 8, 13),
                 },
                 Token{
-                    kind: TokenKind::Identifier("foo3".to_owned()),
+                    kind: TokenKind::Atom("foo3".into()),
                     position: Position::new(2, 8, 22),
                 },
                 Token{

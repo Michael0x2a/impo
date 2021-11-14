@@ -17,14 +17,14 @@ pub enum TypeNode {
 pub struct ClassType {
     name: Name,
     typevars: Vec<TypeVarType>,
-    entries: Vec<(String, TypeNode)>,
+    entries: Vec<(Name, TypeNode)>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct InterfaceType {
     name: Name,
     typevars: Vec<TypeVarType>,
-    entries: Vec<(String, TypeNode)>,
+    entries: Vec<(Name, TypeNode)>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
@@ -52,7 +52,7 @@ pub struct TupleType {
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct TypeVarType {
-    name: String,
+    name: Name,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]

@@ -1,4 +1,5 @@
 use crate::tokens::Position;
+use crate::values::*;
 use super::primitives::Name;
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
@@ -14,9 +15,9 @@ pub enum ExprNode{
     Variable(Name),
     Array(Box<ArrayExpr>),
     Tuple(Box<TupleExpr>),
-    StringLiteral(Box<StringLiteralExpr>),
-    IntLiteral(Box<IntLiteralExpr>),
-    FloatLiteral(Box<FloatLiteralExpr>),
+    StringLiteral(Box<String>),
+    IntLiteral(Box<IntLiteral>),
+    FloatLiteral(Box<FloatLiteral>),
     BoolLiteral(bool),
     Error(Box<ErrorExpr>),
 }
@@ -47,63 +48,50 @@ pub enum Operation {
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct FuncCallExpr {
-    func: ExprNode,
-    params: Vec<ExprNode>,
+    pub func: ExprNode,
+    pub params: Vec<ExprNode>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct InfixExpr {
     // Invariant: exprs.len() == ops.len() + 1
-    exprs: Vec<ExprNode>,
-    ops: Vec<Operation>,
+    pub exprs: Vec<ExprNode>,
+    pub ops: Vec<Operation>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct IndexExpr {
-    source: ExprNode,
-    index: ExprNode,
+    pub source: ExprNode,
+    pub index: ExprNode,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct LookupExpr {
-    source: ExprNode,
-    field_name: String,
+    pub source: ExprNode,
+    pub name_chain: Vec<Name>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct SliceExpr {
-    start: Option<ExprNode>,
-    end: Option<ExprNode>,
+    pub start: Option<ExprNode>,
+    pub end: Option<ExprNode>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct ArrayExpr {
-    items: Vec<ExprNode>,
+    pub items: Vec<ExprNode>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct TupleExpr {
-    items: Vec<ExprNode>,
+    pub items: Vec<ExprNode>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct StringLiteralExpr(String);
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
-pub struct IntLiteralExpr{
-    base: usize,
-    digits: String
-}
-
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
-pub struct FloatLiteralExpr{
-    integral_digits: String,
-    fractional_digits: String,
-    power: String,
-}
-
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct ErrorExpr{
-    message: String,
-    span: (Position, Position),
+    pub message: String,
+    pub span: (Position, Position),
 }

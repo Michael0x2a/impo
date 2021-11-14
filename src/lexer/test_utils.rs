@@ -1,6 +1,7 @@
 use super::core::Lexer;
 
 pub use crate::tokens::{Token, TokenKind, Position};
+pub use crate::values::{IntLiteral, FloatLiteral};
 pub use super::core::LexerError;
 
 pub fn lexer_test<T: AsRef<Token>>(

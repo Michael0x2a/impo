@@ -22,7 +22,7 @@ pub fn match_string(stream: &mut CharStream, c: char) -> Result<Option<TokenKind
         let pos = stream.position();
         let curr = stream
             .read_char()
-            .ok_or(make_unexpected_end_of_string_err(pos))?;
+            .ok_or_else(|| make_unexpected_end_of_string_err(pos))?;
         state = match state {
             StringState::RegularChar => {
                 match curr {
@@ -48,7 +48,7 @@ pub fn match_string(stream: &mut CharStream, c: char) -> Result<Option<TokenKind
 
 fn make_unexpected_end_of_string_err(pos: Position) -> LexerError {
     LexerError{
-        message: format!("Unexpected end of string"),
+        message: "Unexpected end of string".to_owned(),
         position: pos,
     }
 }

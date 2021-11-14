@@ -96,7 +96,9 @@ pub fn match_identifier_or_keyword(stream: &mut CharStream, c: char) -> Option<T
         "sentinal" => TokenKind::Sentinal,
         "const" => TokenKind::Const,
         "implements" => TokenKind::Implements,
-        _ => TokenKind::Identifier(identifier),
+        "true" => TokenKind::BoolLiteral(true),
+        "false" => TokenKind::BoolLiteral(false),
+        _ => TokenKind::Atom(identifier.into()),
     })
 }
 
@@ -217,15 +219,15 @@ mod tests {
                     position: Position::new(0, 8, 8),
                 },
                 Token{
-                    kind: TokenKind::Identifier("foo".to_owned()),
+                    kind: TokenKind::Atom("foo".into()),
                     position: Position::new(0, 19, 19),
                 },
                 Token{
-                    kind: TokenKind::Identifier("b12".to_owned()),
+                    kind: TokenKind::Atom("b12".into()),
                     position: Position::new(0, 23, 23),
                 },
                 Token{
-                    kind: TokenKind::Identifier("andvar".to_owned()),
+                    kind: TokenKind::Atom("andvar".into()),
                     position: Position::new(0, 27, 27),
                 },
             ].iter(),

@@ -72,14 +72,14 @@ pub struct FieldSignatureDefStmt {
 pub struct FuncSignatureDefStmt {
     comment: Comment,
     identifier: Identifier,
-    params: Vec<String>,
+    params: Vec<Name>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct FuncImplementationDefStmt {
     comment: Comment,
     identifier: Identifier,
-    params: Vec<String>,
+    params: Vec<Name>,
     body: Block,
 }
 
@@ -93,7 +93,7 @@ pub struct IfStmt {
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct ForStatement{
     comment: Comment,
-    variable: String,
+    variable: Name,
     start: i64,
     end: i64,
     body: Block,
@@ -102,7 +102,7 @@ pub struct ForStatement{
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct ForeachStmt {
     comment: Comment,
-    variables: Vec<String>,
+    variables: Vec<Name>,
     iterable: ExprNode,
     body: Block,
 }

@@ -1,9 +1,26 @@
 [package]
 name = "impo"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
+repository = "https://github.com/michael0x2a/impo"
+description = "A minimalist language designed to be transpiled into mainstream imperative and object-oriented languages."
+readme = "README.md"
+license = "Apache-2.0"
+keywords = ["programming-language"]
+categories = ["compilers", "parser-implementations"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-thiserror = "1.0"
+# Error handling
 anyhow = "1.0"
+thiserror = "1.0"
+
+# String interning
+string_cache = "0.8.2"
+
+# Parsing
+nom = "7.1.0"
+
+# Macros for enums
+strum = "0.22.0"
+strum_macros = "0.22.0"
