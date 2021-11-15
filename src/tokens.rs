@@ -141,7 +141,7 @@ impl Ord for Position {
 
 impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "line {}, col {}", self.lineno + 1, self.column + 1)
+        write!(f, "{},{}", self.lineno + 1, self.column + 1)
     }
 }
 

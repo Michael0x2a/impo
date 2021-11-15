@@ -1,5 +1,6 @@
 use nom::branch::alt;
-use nom::combinator::map;
+use nom::combinator::{map, opt};
+use nom::error::context;
 use nom::multi::many1;
 use nom::sequence::{delimited, pair, preceded};
 
@@ -9,35 +10,131 @@ use crate::ast::primitives::*;
 use super::core::*;
 
 pub fn match_expr(tokens: &[Token]) -> ParseResult<ExprNode> {
-    alt((match_lookup, match_variable, match_literal))(tokens)
+    context(
+        "match_expr", 
+        alt((match_operations, match_group)),
+    )(tokens)
 }
 
 fn match_group(tokens: &[Token]) -> ParseResult<ExprNode> {
-    delimited(
-        TokenKind::LParen,
-        match_expr,
-        TokenKind::RParen,
+    context(
+        "match_group",
+        delimited(
+            TokenKind::LParen,
+            match_expr,
+            TokenKind::RParen,
+        ),
+    )(tokens)
+}
+
+fn match_operations(tokens: &[Token]) -> ParseResult<ExprNode> {
+    fn build(tokens: &[Token], min_bp: u8) -> ParseResult<ExprNode> {
+        let mut rest = tokens;
+        let mut ops = Vec::new();
+        let mut subexprs = Vec::new();
+
+        let (rest_head, subexpr_head) = match_unit(rest)?;
+        rest = rest_head;
+        subexprs.push(subexpr_head);
+        
+        loop {
+            let (rest_op, op) = opt(match_binary_op)(rest)?;
+
+            let op = match op {
+                Some(op) => op,
+                None => { break; }
+            };
+
+            let (left_bp, right_bp) = op.binding_power();
+            if left_bp < min_bp {
+                break;
+            }
+
+            ops.push(op);
+            rest = rest_op;
+            let (rest_tail, subexpr_tail) = build(rest, right_bp)?;
+
+            rest = rest_tail;
+            subexprs.push(subexpr_tail);
+        }
+
+        if subexprs.len() == 1 && ops.is_empty() {
+            let head = subexprs
+                .first()
+                .ok_or_else(|| err_fatal("bad indexing"))?;
+            return Ok((rest, head.clone()))
+        }
+
+        let output = OperationsExpr{
+            exprs: subexprs,
+            ops: ops,
+        }.into();
+
+        Ok((rest, output))
+    }
+
+    context(
+        "match_operations",
+        |tokens| build(tokens, 0),
+    )(tokens)
+}
+
+fn match_binary_op(tokens: &[Token]) -> ParseResult<Operator> {
+    let (rest, token) = get_next(tokens, "operator")?;
+    let op = match &token.kind {
+        TokenKind::Plus => Operator::Addition,
+        TokenKind::Minus => Operator::Subtraction,
+        TokenKind::Multiply => Operator::Multiplication,
+        TokenKind::Divide => Operator::Division,
+        TokenKind::Percent => Operator::Modulus,
+        TokenKind::Equals => Operator::Equals,
+        TokenKind::NotEquals => Operator::NotEquals,
+        TokenKind::LessThanEquals => Operator::LessThanEquals,
+        TokenKind::GreaterThanEquals => Operator::GreaterThanEquals,
+        TokenKind::LessThan => Operator::LessThan,
+        TokenKind::GreaterThan => Operator::GreaterThan,
+        TokenKind::Pipe => Operator::BitwiseOr,
+        TokenKind::Ampersand => Operator::BitwiseAnd,
+        TokenKind::Or => Operator::LogicalOr,
+        TokenKind::And => Operator::LogicalAnd,
+        TokenKind::InstanceOf => Operator::InstanceOf,
+        _ => {
+            return Err(err_bad_match("operator", token))
+        },
+    };
+    Ok((rest, op))
+}
+
+fn match_unit(tokens: &[Token]) -> ParseResult<ExprNode> {
+    context(
+        "match_unit", 
+        alt((match_lookup, match_atom)),
     )(tokens)
 }
 
 fn match_lookup(tokens: &[Token]) -> ParseResult<ExprNode> {
-    let (rest, (parent, name_chain)) = pair(
-         match_atom, 
-        many1(preceded(
-            TokenKind::Dot, 
-            match_name,
-        )),
+    let (rest, (parent, name_chain)) = context(
+        "match_lookup",
+        pair(
+            match_atom, 
+            many1(preceded(
+                TokenKind::Dot, 
+                match_name,
+            )),
+        )
     )(tokens)?;
-    let expr = ExprNode::Lookup(Box::new(LookupExpr{
+    let expr = LookupExpr{
         source: parent,
         name_chain: name_chain,
-    }));
-    Ok((rest, expr))
+    };
+    Ok((rest, expr.into()))
 }
 
 fn match_atom(tokens: &[Token]) -> ParseResult<ExprNode> {
-    // Add 'match group' -- use this to escape back to top?
-    alt((match_variable, match_literal))(tokens)
+    context(
+        "match_atom",
+    alt((match_variable, match_literal, match_group)),
+    )(tokens)
 }
 
 fn match_variable(tokens: &[Token]) -> ParseResult<ExprNode> {
@@ -45,7 +142,7 @@ fn match_variable(tokens: &[Token]) -> ParseResult<ExprNode> {
 }
 
 fn match_name(tokens: &[Token]) -> ParseResult<Name> {
-    let (rest, token) = get_next(tokens)?;
+    let (rest, token) = get_next(tokens, "name")?;
     match &token.kind {
         TokenKind::Atom(iden) => {
             Ok((rest, iden.clone()))
@@ -57,20 +154,12 @@ fn match_name(tokens: &[Token]) -> ParseResult<Name> {
 }
 
 fn match_literal(tokens: &[Token]) -> ParseResult<ExprNode> {
-    let (rest, token) = get_next(tokens)?;
+    let (rest, token) = get_next(tokens, "literal")?;
     let output = match &token.kind {
-        TokenKind::BoolLiteral(lit) => {
-            ExprNode::BoolLiteral(*lit)
-        },
-        TokenKind::IntLiteral(lit) => {
-            ExprNode::IntLiteral(Box::new(lit.clone()))
-        },
-        TokenKind::FloatLiteral(lit) => {
-            ExprNode::FloatLiteral(Box::new(lit.clone()))
-        },
-        TokenKind::StringLiteral(lit) => {
-            ExprNode::StringLiteral(Box::new(lit.clone()))
-        },
+        TokenKind::BoolLiteral(lit) => ExprNode::BoolLiteral(*lit),
+        TokenKind::IntLiteral(lit) => lit.clone().into(),
+        TokenKind::FloatLiteral(lit) => lit.clone().into(),
+        TokenKind::StringLiteral(lit) => lit.clone().into(),
         _ => {
             return Err(err_bad_match("literal", token));
         }
@@ -85,27 +174,84 @@ mod tests {
     use crate::parser::test_utils::*;
 
     #[test]
-    fn test_match_lookup() -> Result<(), nom::Err<ParserError>> {
+    fn test_operators() -> Result<(), nom::Err<ParserError>> {
         let token_kinds = vec![
-            TokenKind::Atom("foo".into()),
-            TokenKind::Dot,
-            TokenKind::Atom("bar".into()),
-            TokenKind::Dot,
-            TokenKind::Atom("baz".into()),
+            atom("a"),
+            TokenKind::Plus,
+            atom("b"),
+            TokenKind::Multiply,
+            atom("c"),
         ];
 
         parser_test(
+            match_operations,
+            &generate_positions(&token_kinds),
+            OperationsExpr{
+                exprs: vec![
+                    variable("a"),
+                    OperationsExpr{
+                        exprs: vec![
+                            variable("b"),
+                            variable("c"),
+                        ],
+                        ops: vec![Operator::Multiplication],
+                    }.into(),
+                ],
+                ops: vec![Operator::Addition],
+            }.into(),
+        )
+    }
+
+    #[test]
+    fn test_match_lookup() -> Result<(), nom::Err<ParserError>> {
+        let token_kinds = vec![
+            atom("foo"),
+            TokenKind::Dot,
+            atom("bar"),
+            TokenKind::Dot,
+            atom("baz"),
+        ];
+        parser_test(
             match_lookup,
             &generate_positions(&token_kinds),
-            ExprNode::Lookup(Box::new(LookupExpr{
-                source: ExprNode::Variable(
-                    "foo".into(),
-                ),
+            LookupExpr{
+                source: variable("foo"),
                 name_chain: vec![
                     "bar".into(),
                     "baz".into(),
                 ],
-            }))
+            }.into(),
+        )
+    }
+
+    #[test]
+    fn test_match_lookup_nested() -> Result<(), nom::Err<ParserError>> {
+        let token_kinds = vec![
+            TokenKind::LParen,
+            atom("foo"),
+            TokenKind::Dot,
+            atom("bar"),
+            TokenKind::RParen,
+            TokenKind::Dot,
+            atom("baz"),
+            TokenKind::Dot,
+            atom("qux"),
+        ];
+        parser_test(
+            match_lookup,
+            &generate_positions(&token_kinds),
+            LookupExpr{
+                source: LookupExpr{
+                    source: variable("foo"),
+                    name_chain: vec![
+                        "bar".into(),
+                    ],
+                }.into(),
+                name_chain: vec![
+                    "baz".into(),
+                    "qux".into(),
+                ],
+            }.into(),
         )
     }
 
@@ -129,16 +275,16 @@ mod tests {
             nom::multi::many_m_n(4, 4, match_literal),
             &generate_positions(&token_kinds),
             vec![
-                ExprNode::IntLiteral(Box::new(IntLiteral{
+                IntLiteral{
                     base: 10,
                     digits: "123".into(),
-                })),
-                ExprNode::FloatLiteral(Box::new(FloatLiteral{
+                }.into(),
+                FloatLiteral{
                     integral_digits: "123".into(),
                     fractional_digits: "567".into(),
                     power: "".into(),
-                })),
-                ExprNode::StringLiteral(Box::new("foo".into())),
+                }.into(),
+                "foo".into(),
                 ExprNode::BoolLiteral(true),
             ],
         )

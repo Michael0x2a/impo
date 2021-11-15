@@ -7,20 +7,56 @@ pub use crate::tokens::{Position, Token, TokenKind};
 
 pub type ParseResult<'a, R> = nom::IResult<&'a [Token], R, ParserError>;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error)]
 pub struct ParserError {
     pub span: Option<(Position, Position)>,
     pub message: String,
     pub source: Option<Box<ParserError>>,
 }
 
+impl ParserError {
+    fn error_lines(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        let mut curr = self;
+        loop {
+            let line = if let Some((start, end)) = curr.span {
+                format!("[{} - {}] {}", start, end, curr.message)
+            } else {
+                format!("[unknown pos] {}", curr.message)
+            };
+            out.push(line);
+
+            if let Some(next) = &curr.source {
+                curr = next;
+            } else {
+                break;
+            }
+        }
+        out
+    }
+
+    fn add_context(self, ctx: &'static str) -> Self {
+        ParserError {
+            span: self.span,
+            message: format!("{}: {}", ctx, self.message),
+            source: self.source,
+        }
+    }
+}
+
+impl fmt::Debug for ParserError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f)?;
+        for line in self.error_lines() {
+            writeln!(f, "    {}", line)?;
+        }
+        Ok(())
+    }
+}
+
 impl fmt::Display for ParserError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some((start, end)) = self.span {
-            write!(f, "[{} - {}] {}", start, end, self.message)
-        } else {
-            write!(f, "[unknown pos] {}", self.message)
-        }
+        write!(f, "{}", self.error_lines().join("\n"))
     }
 }
 
@@ -43,12 +79,8 @@ impl nom_error::ParseError<&[Token]> for ParserError {
 }
 
 impl nom_error::ContextError<&[Token]> for ParserError {
-    fn add_context(input: &[Token], ctx: &'static str, other: Self) -> Self {
-        ParserError { 
-            span: compute_span(input, other.span),
-            message: ctx.to_owned(),
-            source: Some(Box::new(other)),
-        }
+    fn add_context(_input: &[Token], ctx: &'static str, other: Self) -> Self {
+        other.add_context(ctx)
     }
 }
 
@@ -64,15 +96,20 @@ fn compute_span(input: &[Token], existing_span: Option<(Position, Position)>) ->
         })
 }
 
-pub fn get_next(tokens: &[Token]) -> ParseResult<&Token> {
-    let (token, rest) = tokens.split_first().ok_or_else(err_unexpected_eof)?;
+pub fn get_next(
+    tokens: &[Token],
+    target: impl AsRef<str>,
+) -> ParseResult<&Token> {
+    let (token, rest) = tokens
+        .split_first()
+        .ok_or_else(|| err_unexpected_eof(target))?;
     Ok((rest, token))
 }
 
-pub fn err_unexpected_eof() -> nom::Err<ParserError> {
+pub fn err_unexpected_eof(target: impl AsRef<str>) -> nom::Err<ParserError> {
     nom::Err::Error(ParserError{
         span: None,
-        message: "Unexpected EOF".to_owned(),
+        message: format!("Unexpected EOF, looking for {}", target.as_ref()),
         source: None,
     })
 }
@@ -85,9 +122,17 @@ pub fn err_bad_match(expected: &str, actual: &Token) -> nom::Err<ParserError> {
     })
 }
 
+pub fn err_fatal(message: &str) -> nom::Err<ParserError> {
+    nom::Err::Failure(ParserError{
+        span: None,
+        message: format!("Unexpected fatal internal error: {}", message),
+        source: None,
+    })
+}
+
 impl<'a> nom::Parser<&'a [Token], &'a Token, ParserError> for TokenKind {
     fn parse(&mut self, tokens: &'a [Token]) -> ParseResult<'a, &'a Token> {
-        let (rest, token) = get_next(tokens)?;
+        let (rest, token) = get_next(tokens, self.name())?;
         if &token.kind == self {
             Ok((rest, token))
         } else {

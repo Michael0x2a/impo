@@ -1,6 +1,5 @@
-use std::mem;
-
 use nom::combinator::{all_consuming, complete};
+use crate::ast::ExprNode;
 
 pub use crate::tokens::{Token, TokenKind, Position};
 pub use crate::values::{IntLiteral, FloatLiteral};
@@ -17,8 +16,6 @@ pub fn parser_test<'a, T: Eq + std::fmt::Debug>(
     assert!(rest.is_empty());
     assert_eq!(output, expected);
 
-    mem::drop(tokens);
-
     Ok(())
 }
 
@@ -32,4 +29,12 @@ pub fn generate_positions(kinds: &[TokenKind]) -> Vec<Token> {
             }
         })
         .collect()
+}
+
+pub fn atom(name: &'static str) -> TokenKind {
+    TokenKind::Atom(name.into())
+}
+
+pub fn variable(name: &'static str) -> ExprNode {
+    ExprNode::Variable(name.into())
 }
