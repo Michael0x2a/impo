@@ -19,23 +19,47 @@ pub fn match_expr(tokens: &[Token]) -> ParseResult<ExprNode> {
 fn match_group(tokens: &[Token]) -> ParseResult<ExprNode> {
     context(
         "match_group",
-        delimited(
-            TokenKind::LParen,
-            match_expr,
-            TokenKind::RParen,
+        map(
+            delimited(
+                TokenKind::LParen,
+                match_expr,
+                TokenKind::RParen,
+            ),
+            |e| ExprNode::ExplicitParenthesis(Box::new(e)),
         ),
     )(tokens)
 }
 
 fn match_operations(tokens: &[Token]) -> ParseResult<ExprNode> {
+    type BP = (u8, u8);
+
+    fn merge(prev: (BP, ExprNode), op: Operator, next: (BP, ExprNode)) -> (BP, ExprNode) {
+        let (prev_bp, prev_node) = prev;
+        let (next_bp, next_node) = next;
+
+        if prev_bp == next_bp {
+            if let ExprNode::Infix(infix) = prev_node {
+                let mut new_infix = *infix;
+                new_infix.exprs.push(next_node);
+                new_infix.ops.push(op);
+                return (prev_bp, new_infix.into())
+            }
+        }
+
+        let new_infix = InfixExpr{
+            exprs: vec![prev_node.clone(), next_node],
+            ops: vec![op],
+        };
+        (next_bp, new_infix.into())
+    }
+
     fn build(tokens: &[Token], min_bp: u8) -> ParseResult<ExprNode> {
         let mut rest = tokens;
-        let mut ops = Vec::new();
-        let mut subexprs = Vec::new();
 
         let (rest_head, subexpr_head) = match_unit(rest)?;
+
+        let mut curr = ((0, 0), subexpr_head);
         rest = rest_head;
-        subexprs.push(subexpr_head);
         
         loop {
             let (rest_op, op) = opt(match_binary_op)(rest)?;
@@ -50,27 +74,14 @@ fn match_operations(tokens: &[Token]) -> ParseResult<ExprNode> {
                 break;
             }
 
-            ops.push(op);
             rest = rest_op;
             let (rest_tail, subexpr_tail) = build(rest, right_bp)?;
 
+            curr = merge(curr, op, ((left_bp, right_bp), subexpr_tail));
             rest = rest_tail;
-            subexprs.push(subexpr_tail);
         }
 
-        if subexprs.len() == 1 && ops.is_empty() {
-            let head = subexprs
-                .first()
-                .ok_or_else(|| err_fatal("bad indexing"))?;
-            return Ok((rest, head.clone()))
-        }
-
-        let output = OperationsExpr{
-            exprs: subexprs,
-            ops: ops,
-        }.into();
-
-        Ok((rest, output))
+        Ok((rest, curr.1))
     }
 
     context(
@@ -186,10 +197,10 @@ mod tests {
         parser_test(
             match_operations,
             &generate_positions(&token_kinds),
-            OperationsExpr{
+            InfixExpr{
                 exprs: vec![
                     variable("a"),
-                    OperationsExpr{
+                    InfixExpr{
                         exprs: vec![
                             variable("b"),
                             variable("c"),
@@ -241,12 +252,14 @@ mod tests {
             match_lookup,
             &generate_positions(&token_kinds),
             LookupExpr{
-                source: LookupExpr{
-                    source: variable("foo"),
-                    name_chain: vec![
-                        "bar".into(),
-                    ],
-                }.into(),
+                source: ExprNode::ExplicitParenthesis(Box::new(
+                    LookupExpr{
+                        source: variable("foo"),
+                        name_chain: vec![
+                            "bar".into(),
+                        ],
+                    }.into(),
+                )),
                 name_chain: vec![
                     "baz".into(),
                     "qux".into(),

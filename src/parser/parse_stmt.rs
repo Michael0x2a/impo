@@ -15,5 +15,5 @@ fn match_program(tokens: &[Token]) -> ParseResult<Vec<StmtNode>> {
 }
 
 fn match_stmt(tokens: &[Token]) -> ParseResult<StmtNode> {
-    map(match_expr, StmtNode::Line)(tokens)
+    map(match_expr, |e| LineStmt{expr: e, comment: Comment::empty()}.into())(tokens)
 }

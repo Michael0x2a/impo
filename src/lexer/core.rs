@@ -1,8 +1,6 @@
 use std::collections::VecDeque;
 use std::fmt;
 
-use thiserror;
-
 use super::char_stream::CharStream;
 use super::lex_numbers::*;
 use super::lex_simple::*;

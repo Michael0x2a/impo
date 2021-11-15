@@ -6,7 +6,7 @@ use super::primitives::Name;
 pub enum ExprNode{
     FuncCall(Box<FuncCallExpr>),
     ExplicitParenthesis(Box<ExprNode>),
-    Operations(Box<OperationsExpr>),
+    Infix(Box<InfixExpr>),
     LogicalNegate(Box<ExprNode>),
     NumericalNegate(Box<ExprNode>),
     Index(Box<IndexExpr>),
@@ -23,7 +23,7 @@ pub enum ExprNode{
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
-pub struct OperationsExpr {
+pub struct InfixExpr {
     // Invariants:
     // - exprs.len() == ops.len() + 1
     // - All operations in the vec have the same precedence and
@@ -32,9 +32,9 @@ pub struct OperationsExpr {
     pub ops: Vec<Operator>,
 }
 
-impl From<OperationsExpr> for ExprNode {
-    fn from(other: OperationsExpr) -> ExprNode {
-        ExprNode::Operations(Box::new(other))
+impl From<InfixExpr> for ExprNode {
+    fn from(other: InfixExpr) -> ExprNode {
+        ExprNode::Infix(Box::new(other))
     }
 }
 
@@ -95,6 +95,28 @@ impl Operator {
             | Operator::Division
             | Operator::Modulus => (15, 16),
         }
+    }
+
+    #[must_use]
+    pub fn to_symbol(&self) -> String {
+        match &self {
+            Operator::Multiplication => "*",
+            Operator::Division => "/",
+            Operator::Addition => "+",
+            Operator::Subtraction => "-",
+            Operator::Modulus => "%",
+            Operator::Equals => "==",
+            Operator::NotEquals => "!=",
+            Operator::LessThanEquals => "<=",
+            Operator::GreaterThanEquals => ">=",
+            Operator::LessThan => "<",
+            Operator::GreaterThan => ">",
+            Operator::BitwiseOr => "|",
+            Operator::BitwiseAnd => "&",
+            Operator::LogicalOr => "or",
+            Operator::LogicalAnd => "and",
+            Operator::InstanceOf => "instanceof",
+        }.to_owned()
     }
 }
 

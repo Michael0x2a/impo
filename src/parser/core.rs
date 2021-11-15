@@ -1,6 +1,5 @@
 use std::fmt;
 use std::cmp::{min, max};
-use thiserror;
 use nom::error as nom_error;
 
 pub use crate::tokens::{Position, Token, TokenKind};
@@ -118,14 +117,6 @@ pub fn err_bad_match(expected: &str, actual: &Token) -> nom::Err<ParserError> {
     nom::Err::Error(ParserError{
         span: Some(actual.span()),
         message: format!("Expected {}, got {}", expected, actual.kind.name()),
-        source: None,
-    })
-}
-
-pub fn err_fatal(message: &str) -> nom::Err<ParserError> {
-    nom::Err::Failure(ParserError{
-        span: None,
-        message: format!("Unexpected fatal internal error: {}", message),
         source: None,
     })
 }

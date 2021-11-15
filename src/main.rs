@@ -1,5 +1,5 @@
 use anyhow::Result;
-use impo::{lexer::lex, parser::parse};
+use impo::{lex, parse};
 
 fn main() -> Result<()> {
     let tokens = lex("# test")?;

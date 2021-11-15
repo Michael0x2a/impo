@@ -24,3 +24,6 @@ nom = "7.1.0"
 # Macros for enums
 strum = "0.22.0"
 strum_macros = "0.22.0"
+
+# Other utilities
+itertools = "0.10.1"

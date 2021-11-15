@@ -46,7 +46,13 @@
 
 pub mod values;
 pub mod tokens;
-pub mod lexer;
 pub mod ast;
-pub mod parser;
+pub mod prettyprint;
+
+mod lexer;
+mod parser;
+mod string_utils;
 //pub mod sorted_lookup;
+
+pub use lexer::lex;
+pub use parser::parse;
