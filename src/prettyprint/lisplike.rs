@@ -129,11 +129,20 @@ fn prettyprint_expr(expr: &ExprNode) -> String {
 
     fn print_expr(expr: &ExprNode) -> String {
         match expr {
-            ExprNode::FuncCall(e) => format!(
-                "(func {} {})", 
-                print_expr(&e.func),
-                print_exprs(&e.params),
-            ),
+            ExprNode::FuncCall(e) => {
+                if e.params.is_empty() {
+                    format!(
+                        "(func {})", 
+                        print_expr(&e.func),
+                    )
+                } else {
+                    format!(
+                        "(func {} {})", 
+                        print_expr(&e.func),
+                        print_exprs(&e.params),
+                    )
+                }
+            },
             ExprNode::ExplicitParenthesis(e) => format!(
                 "(paren {})",
                 print_expr(e),
@@ -143,32 +152,29 @@ fn prettyprint_expr(expr: &ExprNode) -> String {
                     "(infix {})",
                     e.exprs.iter()
                         .map(print_expr)
-                        .interleave(e.ops.iter().map(Operator::to_symbol))
+                        .interleave(e.ops.iter().map(InfixOp::to_symbol))
                         .join(" "),
                 )
             },
-            ExprNode::LogicalNegate(e) => format!(
-                "(! {})",
-                print_expr(e),
-            ),
-            ExprNode::NumericalNegate(e) => format!(
-                "(- {})",
-                print_expr(e),
+            ExprNode::Prefix(e) => format!(
+                "({} {})",
+                &e.op.to_symbol(),
+                print_expr(&e.expr),
             ),
             ExprNode::Index(e) => format!(
                 "(index {} {})",
                 print_expr(&e.source),
                 print_expr(&e.index),
             ),
-            ExprNode::Slice(e) => format!(
-                "(slice {} {})",
-                &e.start.as_ref().map_or_else(|| "start".to_owned(), print_expr),
-                &e.start.as_ref().map_or_else(|| "end".to_owned(), print_expr),
+            ExprNode::Range(e) => format!(
+                "(range {} {})",
+                print_expr(&e.start),
+                print_expr(&e.end),
             ),
             ExprNode::Lookup(e) => format!(
                 "(lookup {} {})",
                 print_expr(&e.source),
-                e.name_chain.iter().map(quote).join(" "),
+                e.name_chain.iter().join(" "),
             ),
             ExprNode::Variable(e) => e.to_string(),
             ExprNode::Array(e) => format!(

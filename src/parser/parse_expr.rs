@@ -1,7 +1,7 @@
 use nom::branch::alt;
 use nom::combinator::{map, opt};
 use nom::error::context;
-use nom::multi::many1;
+use nom::multi::{many1, separated_list0};
 use nom::sequence::{delimited, pair, preceded};
 
 use crate::ast::exprs::*;
@@ -33,7 +33,7 @@ fn match_group(tokens: &[Token]) -> ParseResult<ExprNode> {
 fn match_operations(tokens: &[Token]) -> ParseResult<ExprNode> {
     type BP = (u8, u8);
 
-    fn merge(prev: (BP, ExprNode), op: Operator, next: (BP, ExprNode)) -> (BP, ExprNode) {
+    fn merge(prev: (BP, ExprNode), op: InfixOp, next: (BP, ExprNode)) -> (BP, ExprNode) {
         let (prev_bp, prev_node) = prev;
         let (next_bp, next_node) = next;
 
@@ -46,6 +46,14 @@ fn match_operations(tokens: &[Token]) -> ParseResult<ExprNode> {
             }
         }
 
+        if op == InfixOp::To {
+            let range_infix = RangeExpr{
+                start: prev_node,
+                end: next_node,
+            };
+            return (next_bp, range_infix.into())
+        }
+
         let new_infix = InfixExpr{
             exprs: vec![prev_node.clone(), next_node],
             ops: vec![op],
@@ -56,13 +64,28 @@ fn match_operations(tokens: &[Token]) -> ParseResult<ExprNode> {
     fn build(tokens: &[Token], min_bp: u8) -> ParseResult<ExprNode> {
         let mut rest = tokens;
 
-        let (rest_head, subexpr_head) = match_unit(rest)?;
+        let (rest_prefix, op_prefix) = opt(match_prefix_op)(rest)?;
+
+        let (rest_head, subexpr_head) = match op_prefix {
+            Some(op) => {
+                rest = rest_prefix;
+
+                let ((), right_bp) = op.binding_power();
+                let (rest_prefix_expr, subexpr_prefix_expr) = build(rest, right_bp)?;
+                let curr = PrefixExpr{
+                    op: op,
+                    expr: subexpr_prefix_expr,
+                };
+                (rest_prefix_expr, curr.into())
+            },
+            None => match_operand(rest)?,
+        };
 
         let mut curr = ((0, 0), subexpr_head);
         rest = rest_head;
         
         loop {
-            let (rest_op, op) = opt(match_binary_op)(rest)?;
+            let (rest_op, op) = opt(match_infix_op)(rest)?;
 
             let op = match op {
                 Some(op) => op,
@@ -73,12 +96,12 @@ fn match_operations(tokens: &[Token]) -> ParseResult<ExprNode> {
             if left_bp < min_bp {
                 break;
             }
-
             rest = rest_op;
+
             let (rest_tail, subexpr_tail) = build(rest, right_bp)?;
+            rest = rest_tail;
 
             curr = merge(curr, op, ((left_bp, right_bp), subexpr_tail));
-            rest = rest_tail;
         }
 
         Ok((rest, curr.1))
@@ -90,32 +113,110 @@ fn match_operations(tokens: &[Token]) -> ParseResult<ExprNode> {
     )(tokens)
 }
 
-fn match_binary_op(tokens: &[Token]) -> ParseResult<Operator> {
-    let (rest, token) = get_next(tokens, "operator")?;
+fn match_infix_op(tokens: &[Token]) -> ParseResult<InfixOp> {
+    let (rest, token) = get_next(tokens, "infix op")?;
     let op = match &token.kind {
-        TokenKind::Plus => Operator::Addition,
-        TokenKind::Minus => Operator::Subtraction,
-        TokenKind::Multiply => Operator::Multiplication,
-        TokenKind::Divide => Operator::Division,
-        TokenKind::Percent => Operator::Modulus,
-        TokenKind::Equals => Operator::Equals,
-        TokenKind::NotEquals => Operator::NotEquals,
-        TokenKind::LessThanEquals => Operator::LessThanEquals,
-        TokenKind::GreaterThanEquals => Operator::GreaterThanEquals,
-        TokenKind::LessThan => Operator::LessThan,
-        TokenKind::GreaterThan => Operator::GreaterThan,
-        TokenKind::Pipe => Operator::BitwiseOr,
-        TokenKind::Ampersand => Operator::BitwiseAnd,
-        TokenKind::Or => Operator::LogicalOr,
-        TokenKind::And => Operator::LogicalAnd,
-        TokenKind::InstanceOf => Operator::InstanceOf,
+        TokenKind::Or => InfixOp::LogicalOr,
+        TokenKind::And => InfixOp::LogicalAnd,
+
+        TokenKind::Equals => InfixOp::Equals,
+        TokenKind::NotEquals => InfixOp::NotEquals,
+        TokenKind::LessThanEquals => InfixOp::LessThanEquals,
+        TokenKind::GreaterThanEquals => InfixOp::GreaterThanEquals,
+        TokenKind::LessThan => InfixOp::LessThan,
+        TokenKind::GreaterThan => InfixOp::GreaterThan,
+        TokenKind::To => InfixOp::To,
+
+        TokenKind::InstanceOf => InfixOp::InstanceOf,
+
+        TokenKind::Pipe => InfixOp::BitwiseOr,
+        TokenKind::Caret => InfixOp::BitwiseXor,
+        TokenKind::Ampersand => InfixOp::BitwiseAnd,
+
+        TokenKind::ShiftLeft => InfixOp::BitwiseShiftLeft,
+        TokenKind::ShiftRight => InfixOp::BitwiseShiftRight,
+
+        TokenKind::Plus => InfixOp::Addition,
+        TokenKind::Minus => InfixOp::Subtraction,
+
+        TokenKind::Multiply => InfixOp::Multiplication,
+        TokenKind::Divide => InfixOp::Division,
+        TokenKind::Percent => InfixOp::Modulus,
+
         _ => {
-            return Err(err_bad_match("operator", token))
+            return Err(err_bad_match("infix operator", token))
         },
     };
     Ok((rest, op))
 }
 
+fn match_prefix_op(tokens: &[Token]) -> ParseResult<PrefixOp> {
+    let (rest, token) = get_next(tokens, "prefix op")?;
+    let op = match &token.kind {
+        TokenKind::Bang=> PrefixOp::LogicalNegate,
+        TokenKind::Minus => PrefixOp::NumericalNegate,
+        TokenKind::Tilde => PrefixOp::BitwiseNegate,
+        _ => {
+            return Err(err_bad_match("prefix operator", token))
+        },
+    };
+    Ok((rest, op))
+}
+
+// Operand -- anything that's a valid operand.
+fn match_operand(tokens: &[Token]) -> ParseResult<ExprNode> {
+    context(
+        "match_operand", 
+        alt((match_call_like, match_unit)),
+    )(tokens)
+}
+
+fn match_call_like(tokens: &[Token]) -> ParseResult<ExprNode> {
+    enum Tail {
+        FuncCall(Vec<ExprNode>),
+        Index(ExprNode),
+    }
+
+    fold1(
+        match_unit,
+        alt((
+            map(
+                delimited(
+                    TokenKind::LParen,
+                    separated_list0(
+                        TokenKind::Comma,
+                        match_expr,
+                    ),
+                    TokenKind::RParen,
+                ),
+                Tail::FuncCall,
+            ),
+            map(
+            delimited(
+                    TokenKind::LSquare,
+                    match_expr,
+                    TokenKind::RSquare,
+                ),
+                Tail::Index,
+            )
+        )),
+        |curr, tail| {
+            match tail {
+                Tail::FuncCall(params) => FuncCallExpr{
+                    func: curr,
+                    params: params,
+                }.into(),
+                Tail::Index(index) => IndexExpr{
+                    source: curr,
+                    index: index,
+                }.into(),
+            }
+        }
+    )(tokens)
+}
+
+// Unit -- An entity that is either indivisible or consists of several
+// pieces, where not all of the pieces are valid expressions.
 fn match_unit(tokens: &[Token]) -> ParseResult<ExprNode> {
     context(
         "match_unit", 
@@ -141,6 +242,7 @@ fn match_lookup(tokens: &[Token]) -> ParseResult<ExprNode> {
     Ok((rest, expr.into()))
 }
 
+// Atom -- a small, indivisible unit
 fn match_atom(tokens: &[Token]) -> ParseResult<ExprNode> {
     context(
         "match_atom",
@@ -205,10 +307,10 @@ mod tests {
                             variable("b"),
                             variable("c"),
                         ],
-                        ops: vec![Operator::Multiplication],
+                        ops: vec![InfixOp::Multiplication],
                     }.into(),
                 ],
-                ops: vec![Operator::Addition],
+                ops: vec![InfixOp::Addition],
             }.into(),
         )
     }

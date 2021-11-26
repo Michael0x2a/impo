@@ -18,6 +18,8 @@ pub fn match_simple_operator(stream: &mut CharStream, c: char) -> Option<TokenKi
         '>' => {
             if stream.read_if_char('=') {
                 TokenKind::GreaterThanEquals
+            } else if stream.read_if_char('>') {
+                TokenKind::ShiftRight
             } else {
                 TokenKind::GreaterThan
             }
@@ -25,6 +27,8 @@ pub fn match_simple_operator(stream: &mut CharStream, c: char) -> Option<TokenKi
         '<' => {
             if stream.read_if_char('=') {
                 TokenKind::LessThanEquals
+            } else if stream.read_if_char('<') {
+                TokenKind::ShiftLeft
             } else {
                 TokenKind::LessThan
             }
@@ -43,8 +47,10 @@ pub fn match_simple_operator(stream: &mut CharStream, c: char) -> Option<TokenKi
                 TokenKind::Bang
             }
         },
+        '~' => TokenKind::Tilde,
         '|' => TokenKind::Pipe,
         '&' => TokenKind::Ampersand,
+        '^' => TokenKind::Caret,
         '.' => TokenKind::Dot,
         ':' => TokenKind::Colon,
         ',' => TokenKind::Comma,
@@ -116,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_lex_single_char_operators() -> Result<(), LexerError> {
-        let input = "+ - * / < > ! | & . = : ,";
+        let input = "+ - * / < > ! ~ | ^ & . = : ,";
         let expected_kinds = vec![
             TokenKind::Plus,
             TokenKind::Minus,
@@ -125,7 +131,9 @@ mod tests {
             TokenKind::LessThan,
             TokenKind::GreaterThan,
             TokenKind::Bang,
+            TokenKind::Tilde,
             TokenKind::Pipe,
+            TokenKind::Caret,
             TokenKind::Ampersand,
             TokenKind::Dot,
             TokenKind::Assign,
@@ -145,13 +153,15 @@ mod tests {
 
     #[test]
     fn test_lex_double_char_operators() -> Result<(), LexerError> {
-        let input = "== != <= >= ->";
+        let input = "== != <= >= -> << >>";
         let expected_kinds = vec![
             TokenKind::Equals,
             TokenKind::NotEquals,
             TokenKind::LessThanEquals,
             TokenKind::GreaterThanEquals,
             TokenKind::Arrow,
+            TokenKind::ShiftLeft,
+            TokenKind::ShiftRight,
         ];
         lexer_test(
             input,

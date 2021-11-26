@@ -7,10 +7,9 @@ pub enum ExprNode{
     FuncCall(Box<FuncCallExpr>),
     ExplicitParenthesis(Box<ExprNode>),
     Infix(Box<InfixExpr>),
-    LogicalNegate(Box<ExprNode>),
-    NumericalNegate(Box<ExprNode>),
+    Prefix(Box<PrefixExpr>),
     Index(Box<IndexExpr>),
-    Slice(Box<SliceExpr>),
+    Range(Box<RangeExpr>),
     Lookup(Box<LookupExpr>),
     Variable(Name),
     Array(Box<ArrayExpr>),
@@ -29,7 +28,7 @@ pub struct InfixExpr {
     // - All operations in the vec have the same precedence and
     //   can be evaluated from left to right
     pub exprs: Vec<ExprNode>,
-    pub ops: Vec<Operator>,
+    pub ops: Vec<InfixOp>,
 }
 
 impl From<InfixExpr> for ExprNode {
@@ -38,13 +37,10 @@ impl From<InfixExpr> for ExprNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
-pub enum Operator {
-    Multiplication,
-    Division,
-    Addition,
-    Subtraction,
-    Modulus,
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
+pub enum InfixOp {
+    LogicalOr,
+    LogicalAnd,
 
     Equals,
     NotEquals,
@@ -52,73 +48,150 @@ pub enum Operator {
     GreaterThanEquals,
     LessThan,
     GreaterThan,
-
-    BitwiseOr,
-    BitwiseAnd,
-
-    LogicalOr,
-    LogicalAnd,
+    To,
 
     InstanceOf,
+
+    BitwiseOr,
+    BitwiseXor,
+    BitwiseAnd,
+
+    BitwiseShiftLeft,
+    BitwiseShiftRight,
+
+    Addition,
+    Subtraction,
+
+    Multiplication,
+    Division,
+    Modulus,
 }
 
-impl Operator {
+impl InfixOp {
     // Returns how "strongly" this operator binds itself to
     // the expression on the left and right. Higher numbers results
     // in a "stronger" binding.
     #[must_use]
     pub fn binding_power(&self) -> (u8, u8) {
         match &self {
-            Operator::LogicalOr => (1, 2),
-            Operator::LogicalAnd => (3, 4),
-            Operator::InstanceOf => (5, 6),
+            InfixOp::LogicalOr => (1, 2),
+            InfixOp::LogicalAnd => (3, 4),
 
-            // Infix: logical negate here?
+            // (5, 6) is reserved by the logical negation prefix operator
 
             // Comparisons
-            Operator::Equals 
-            | Operator::NotEquals
-            | Operator::LessThanEquals
-            | Operator::GreaterThanEquals
-            | Operator::LessThan
-            | Operator::GreaterThan => (7, 8),
+            InfixOp::Equals 
+            | InfixOp::NotEquals
+            | InfixOp::LessThanEquals
+            | InfixOp::GreaterThanEquals
+            | InfixOp::LessThan
+            | InfixOp::GreaterThan => (7, 8),
+           
+            // Range
+            InfixOp::To => (9, 10),
+
+            // Special comparisons`
+            InfixOp::InstanceOf => (11, 12),
 
             // Bitwise operations
-            Operator::BitwiseOr => (9, 10),
-            Operator::BitwiseAnd => (11, 12),
+            InfixOp::BitwiseOr => (13, 14),
+            InfixOp::BitwiseXor => (15, 16),
+            InfixOp::BitwiseAnd => (17, 18),
+
+            // Bitwise shifts
+            InfixOp::BitwiseShiftLeft
+            | InfixOp::BitwiseShiftRight => (19, 20),
 
             // Arithmetic
-            Operator::Addition
-            | Operator::Subtraction => (13, 14),
+            InfixOp::Addition
+            | InfixOp::Subtraction => (21, 22),
 
-            Operator::Multiplication
-            | Operator::Division
-            | Operator::Modulus => (15, 16),
+            InfixOp::Multiplication
+            | InfixOp::Division
+            | InfixOp::Modulus => (23, 24),
+
+            // (25, 26) is reserved by the numerical and bitwise prefix operators
         }
     }
 
     #[must_use]
     pub fn to_symbol(&self) -> String {
         match &self {
-            Operator::Multiplication => "*",
-            Operator::Division => "/",
-            Operator::Addition => "+",
-            Operator::Subtraction => "-",
-            Operator::Modulus => "%",
-            Operator::Equals => "==",
-            Operator::NotEquals => "!=",
-            Operator::LessThanEquals => "<=",
-            Operator::GreaterThanEquals => ">=",
-            Operator::LessThan => "<",
-            Operator::GreaterThan => ">",
-            Operator::BitwiseOr => "|",
-            Operator::BitwiseAnd => "&",
-            Operator::LogicalOr => "or",
-            Operator::LogicalAnd => "and",
-            Operator::InstanceOf => "instanceof",
+            InfixOp::LogicalOr => "or",
+            InfixOp::LogicalAnd => "and",
+
+            InfixOp::Equals => "==",
+            InfixOp::NotEquals => "!=",
+            InfixOp::LessThanEquals => "<=",
+            InfixOp::GreaterThanEquals => ">=",
+            InfixOp::LessThan => "<",
+            InfixOp::GreaterThan => ">",
+            InfixOp::To => "to",
+
+            InfixOp::InstanceOf => "instanceof",
+
+            InfixOp::BitwiseOr => "|",
+            InfixOp::BitwiseXor => "^",
+            InfixOp::BitwiseAnd => "&",
+
+            InfixOp::BitwiseShiftLeft => "<<",
+            InfixOp::BitwiseShiftRight => ">>",
+
+            InfixOp::Addition => "+",
+            InfixOp::Subtraction => "-",
+
+            InfixOp::Multiplication => "*",
+            InfixOp::Division => "/",
+            InfixOp::Modulus => "%",
         }.to_owned()
     }
 }
+
+#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+pub struct PrefixExpr {
+    pub expr: ExprNode,
+    pub op: PrefixOp,
+}
+
+impl From<PrefixExpr> for ExprNode {
+    fn from(other: PrefixExpr) -> ExprNode {
+        ExprNode::Prefix(Box::new(other))
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
+pub enum PrefixOp {
+    LogicalNegate,
+    NumericalNegate,
+    BitwiseNegate,
+}
+
+impl PrefixOp {
+    // Returns how "strongly" this operator binds itself to
+    // the expression on the left and right. Higher numbers results
+    // in a "stronger" binding.
+    //
+    // Since prefixes only bind to the right, we mandate we return
+    // the unit type for the left.
+    #[must_use]
+    pub fn binding_power(&self) -> ((), u8) {
+        match &self {
+            PrefixOp::LogicalNegate => ((), 6),
+            PrefixOp::NumericalNegate
+            | PrefixOp::BitwiseNegate => ((), 26),
+        }
+    }
+
+    #[must_use]
+    pub fn to_symbol(&self) -> String {
+        match &self {
+            PrefixOp::LogicalNegate => "!",
+            PrefixOp::NumericalNegate => "-",
+            PrefixOp::BitwiseNegate => "~",
+        }.to_owned()
+    }
+}
+
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct FuncCallExpr {
@@ -157,14 +230,14 @@ impl From<LookupExpr> for ExprNode {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
-pub struct SliceExpr {
-    pub start: Option<ExprNode>,
-    pub end: Option<ExprNode>,
+pub struct RangeExpr {
+    pub start: ExprNode,
+    pub end: ExprNode,
 }
 
-impl From<SliceExpr> for ExprNode {
-    fn from(other: SliceExpr) -> ExprNode {
-        ExprNode::Slice(Box::new(other))
+impl From<RangeExpr> for ExprNode {
+    fn from(other: RangeExpr) -> ExprNode {
+        ExprNode::Range(Box::new(other))
     }
 }
 

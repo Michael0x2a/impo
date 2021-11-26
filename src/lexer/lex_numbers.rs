@@ -53,6 +53,14 @@ pub fn match_number(stream: &mut CharStream, c: char) -> Result<Option<TokenKind
             NumState::InitialZero => {
                 match stream.peek_char() {
                     Some('.') => {
+                        if let Some(maybe_num) = stream.peek_char_at_offset(1) {
+                            if !is_digit(maybe_num) {
+                                return Ok(None)
+                            }
+                        } else {
+                            return Ok(None)
+                        }
+
                         let _ = stream.read_char();
                         integral_digits.push('0');
                         NumState::FractionalDigits
@@ -88,6 +96,11 @@ pub fn match_number(stream: &mut CharStream, c: char) -> Result<Option<TokenKind
                     Some('.') => {
                         if base != 10 {
                             return make_nonstandard_base_into_floating_point_err(stream.position());
+                        }
+                        if let Some(maybe_num) = stream.peek_char_at_offset(1) {
+                            if !is_digit(maybe_num) {
+                                break;
+                            }
                         }
                         let _ = stream.read_char();
                         NumState::FractionalDigits
@@ -255,6 +268,31 @@ mod tests {
                     power: "-12345".into(),
                 }),
             ].into_iter()
+        )
+    }
+
+    #[test]
+    fn test_bad_number() -> Result<(), LexerError> {
+        lexer_test_ignore_positions(
+            concat!(
+                "3.foo ",
+                "3.4.foo ",
+            ),
+            vec![
+                TokenKind::IntLiteral(IntLiteral{
+                    base: 10,
+                    digits: "3".into(),
+                }),
+                TokenKind::Dot,
+                TokenKind::Atom("foo".into()),
+                TokenKind::FloatLiteral(FloatLiteral{
+                    integral_digits: "3".into(),
+                    fractional_digits: "4".into(),
+                    power: "".into(),
+                }),
+                TokenKind::Dot,
+                TokenKind::Atom("foo".into()),
+            ].into_iter(),
         )
     }
 }

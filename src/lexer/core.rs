@@ -33,15 +33,15 @@ impl fmt::Display for LexerError {
     }
 }
 
-pub struct Lexer<'a> {
-    stream: CharStream<'a>,
+pub struct Lexer {
+    stream: CharStream,
     indent_level: usize,
     brace_level: usize,
     queued: VecDeque<Token>,
 }
 
-impl<'a> Lexer<'a> {
-    pub fn new(input: &'a str) -> Lexer<'a> {
+impl Lexer {
+    pub fn new(input: &str) -> Lexer {
         Lexer{ 
             stream: CharStream::new(input),
             indent_level: 0,
@@ -142,14 +142,12 @@ impl<'a> Lexer<'a> {
                 return None
             }
         };
-        match kind {
+        self.brace_level = match kind {
             TokenKind::LParen | TokenKind::LBrace | TokenKind::LSquare => {
-                self.brace_level += 1;
+                self.brace_level.saturating_add(1)
             },
-            _ => {
-                self.brace_level -= 1;
-            } 
-        }
+            _ => self.brace_level.saturating_sub(1)
+        };
         Some(kind)
     }
 
