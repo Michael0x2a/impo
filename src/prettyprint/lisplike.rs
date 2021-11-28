@@ -9,124 +9,239 @@ pub fn prettyprint_program(program: Program) -> String {
 
 #[allow(clippy::too_many_lines)]
 fn prettyprint_stmt(stmt: &StmtNode) -> String {
-    fn line(level: usize, text: impl Into<String>) -> String {
-        format!("{}{}", " ".repeat(level), text.into())
+    fn with_indent(level: usize, text: impl AsRef<str>) -> String {
+        format!("{}{}", " ".repeat(level), text.as_ref())
     }
 
-    fn write_comment(lines: &mut Vec<String>, level: usize, comment: &Comment) {
-        for comment in &comment.lines {
-            lines.push(line(level, format!("# {}", comment)));
-        }
+    type Writer<'a> = Box<dyn Fn(&mut Vec<String>, usize) + 'a>;
+
+    fn sequence(children: Vec<Writer>) -> Writer {
+        Box::new(move |lines, level| {
+            for child_writer in &children {
+                child_writer(lines, level);
+            }
+        })
     }
 
-    fn block_writer(
-        lines: &mut Vec<String>,
-        level: usize,
-        name: &'static str,
-        comment: &Comment,
-        children: Vec<String>,
-    ) {
-        write_comment(lines, level, comment);
-        lines.push(line(level, format!("({}", name)));
-        lines.extend(children);
-        lines.push(line(level, ")"));
+    // Technically redundant with sequence', but this one avoids the extra Vec allocation
+    fn pair<'a>(writer1: Writer<'a>, writer2: Writer<'a>) -> Writer<'a> {
+        Box::new(move |lines, level| {
+            writer1(lines, level);
+            writer2(lines, level);
+        })
     }
 
-    fn write_stmt(lines: &mut Vec<String>, curr: usize, stmt: &StmtNode) {
-        let mut block = |name, comment, children| {
-            block_writer(lines, curr, name, comment, children);
-        };
+    fn with_comment<'a>(c: &'a Comment, writer: Writer<'a>) -> Writer<'a> {
+        sequence(vec![comment(c), writer])
+    }
 
-        let next = curr + 4;
+    fn empty<'a>() -> Writer<'a> {
+        Box::new(move |lines, _| {
+            lines.push("".to_owned());
+        })
+    }
+
+    fn literal<'a>(text: String) -> Writer<'a> {
+        Box::new(move |lines, level| {
+            lines.push(with_indent(level, &text));
+        })
+    }
+
+    fn comment(comment: &Comment) -> Writer {
+        sequence(comment.lines.iter().map(|line| format!("# {}", line)).map(literal).collect())
+    }
+
+    fn bare_block<'a>(
+        name: &'a str,
+        body: Writer<'a>,
+    ) -> Writer<'a> {
+        Box::new(move |lines, level| {
+            lines.push(with_indent(level, format!("({}", name)));
+            body(lines, level + 4);
+            lines.push(with_indent(level, ")"));
+        })
+    }
+
+    fn expr_block<'a>(
+        name: &'a str,
+        exprs: Vec<String>,
+        body: Writer<'a>,
+    ) -> Writer<'a> {
+        Box::new(move |lines, level| {
+            lines.push(with_indent(level, format!("({} {}", name, exprs.join(" "))));
+            body(lines, level + 4);
+            lines.push(with_indent(level, ")"));
+        })
+    }
+
+    fn line<'a>(prefix: &'static str, expr: &'a ExprNode) -> Writer<'a> {
+        Box::new(move |lines, level| {
+            let indent = " ".repeat(level);
+            let text = prettyprint_expr(expr);
+            if prefix.is_empty() {
+                lines.push(format!("{}{}", indent, text));
+            } else {
+                lines.push(format!("{}{}{}", indent, prefix, text));
+            }
+        })
+    }
+
+    fn write_block(block: &[StmtNode]) -> Writer {
+        Box::new(move |lines, level| {
+            for stmt in block {
+                write_stmt(stmt)(lines, level);
+            }
+        })
+    }
+
+    fn write_stmt(stmt: &StmtNode) -> Writer {
         match stmt {
             StmtNode::Program(s) => {
-                for child in &s.body {
-                    write_stmt(lines, curr, child);
-                }
+                write_block(&s.body)
             },
             StmtNode::Import(s) => {
-                block("import", &s.comment, vec![
-                    line(next, s.source.to_string()),
-                    line(next, s.imports.iter().map(quote).join(" ")),
-                ]);
+                with_comment(
+                    &s.comment,
+                    bare_block("import", pair(
+                        literal(s.source.to_string()),
+                        literal(s.imports.iter().map(quote).join(" ")),
+                    )),
+                )
             },
             StmtNode::InterfaceDef(s) => {
-                block("interface", &s.comment, vec![
-                    line(next, "WIP"),
-                ]);
+                with_comment(
+                    &s.comment,
+                    bare_block("interface", sequence(vec![
+                        literal("WIP".to_owned()),
+                    ])),
+                )
             },
             StmtNode::ClassDef(s) => {
-                block("class", &s.comment, vec![
-                    line(next, "WIP"),
-                ]);
+                with_comment(
+                    &s.comment,
+                    bare_block("class", sequence(vec![
+                        literal("WIP".to_owned()),
+                    ])),
+                )
             },
             StmtNode::SentinalDef(s) => {
-                block("sentinal", &s.comment, vec![
-                    line(next, "WIP"),
-                ]);
+                with_comment(
+                    &s.comment,
+                    bare_block("sentinal", sequence(vec![
+                        literal("WIP".to_owned()),
+                    ])),
+                )
             },
             StmtNode::FieldSignatureDef(s) => {
-                block("field", &s.comment, vec![
-                    line(next, "WIP"),
-                ]);
+                with_comment(
+                    &s.comment,
+                    bare_block("field", sequence(vec![
+                        literal("WIP".to_owned()),
+                    ])),
+                )
             },
             StmtNode::FuncSignatureDef(s) => {
-                block("fn", &s.comment, vec![
-                    line(next, "WIP"),
-                ]);
+                with_comment(
+                    &s.comment,
+                    bare_block("fn", sequence(vec![
+                        literal("WIP".to_owned()),
+                    ]))
+                )
             },
             StmtNode::FuncImplementationDef(s) => {
-                block("fn", &s.comment, vec![
-                    line(next, "WIP"),
-                ]);
+                with_comment(
+                    &s.comment,
+                    bare_block("fn", sequence(vec![
+                        literal("WIP".to_owned()),
+                    ])),
+                )
             },
             StmtNode::If(s) => {
-                block("if", &s.comment, vec![
-                    line(next, "WIP"),
-                ]);
+                let mut writers = vec![expr_block(
+                    "if-branch",
+                    vec![prettyprint_expr(&s.if_branch.0)], 
+                    write_block(&s.if_branch.1),
+                )];
+                for (cond, body) in &s.elif_branches {
+                    writers.push(expr_block(
+                        "elif-branch",
+                        vec![prettyprint_expr(cond)], 
+                        write_block(body),
+                    ));
+                }
+                if let Some(body) = &s.else_branch {
+                    writers.push(bare_block(
+                        "else-branch",
+                        write_block(body),
+                    ));
+                }
+                sequence(vec![
+                    comment(&s.comment),
+                    bare_block("if", sequence(writers)),
+                ])
             },
             StmtNode::For(s) => {
-                block("for", &s.comment, vec![
-                    line(next, "WIP"),
-                ]);
+                with_comment(
+                    &s.comment,
+                    bare_block("for", sequence(vec![
+                        literal("WIP".to_owned()),
+                    ])),
+                )
             },
             StmtNode::Foreach(s) => {
-                block("foreach", &s.comment, vec![
-                    line(next, "WIP"),
-                ]);
+                with_comment(
+                    &s.comment,
+                    bare_block("foreach", sequence(vec![
+                        literal("WIP".to_owned()),
+                    ])),
+                )
             },
             StmtNode::While(s) => {
-                block("while", &s.comment, vec![
-                    line(next, "WIP"),
-                ]);
+                with_comment(
+                    &s.comment,
+                    bare_block("while", sequence(vec![
+                        literal("WIP".to_owned()),
+                    ])),
+                )
             },
             StmtNode::Return(s) => {
-                block("return", &s.comment, vec![
-                    line(next, "WIP"),
-                ]);
+                with_comment(
+                    &s.comment,
+                    bare_block("return", sequence(vec![
+                        literal("WIP".to_owned()),
+                    ])),
+                )
             },
             StmtNode::Panic(s) => {
-                block("panic", &s.comment, vec![
-                    line(next, "WIP"),
-                ]);
+                with_comment(
+                    &s.comment,
+                    bare_block("panic", sequence(vec![
+                        literal("WIP".to_owned()),
+                    ])),
+                )
             },
             StmtNode::Assignment(s) => {
-                block("assignment", &s.comment, vec![
-                    line(next, "WIP"),
-                ]);
+                with_comment(
+                    &s.comment,
+                    bare_block("assignment", sequence(vec![
+                        literal("WIP".to_owned()),
+                    ])),
+                )
             },
             StmtNode::Line(s) => {
-                write_comment(lines, curr, &s.comment);
-                lines.push(line(curr, prettyprint_expr(&s.expr)));
+                with_comment(
+                    &s.comment,
+                    line("", &s.expr),
+                )
             },
             StmtNode::EmptyLine() => {
-                lines.push("".to_owned());
+                empty()
             },
         }
     }
 
     let mut lines = Vec::new();
-    write_stmt(&mut lines, 0, stmt);
+    write_stmt(stmt)(&mut lines, 0);
     lines.join("\n")
 }
 

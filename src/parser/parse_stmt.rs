@@ -1,7 +1,7 @@
 use nom::branch::{alt};
-use nom::combinator::{complete, map};
-use nom::multi::{many0, fold_many0};
-use nom::sequence::{pair, terminated};
+use nom::combinator::{complete, map, opt, value};
+use nom::multi::{many0, many1, fold_many0};
+use nom::sequence::{pair, terminated, tuple};
 use crate::ast::stmts::*;
 
 use super::core::*;
@@ -22,11 +22,71 @@ fn match_program(tokens: &[Token]) -> ParseResult<Program> {
     )(tokens)
 }
 
+fn match_block(tokens: &[Token]) -> ParseResult<Block> {
+    many1(match_stmt)(tokens)
+}
+
 fn match_stmt(tokens: &[Token]) -> ParseResult<StmtNode> {
     alt((
+        match_if,
         match_line,
         match_empty_line,
     ))(tokens)
+}
+
+fn match_if(tokens: &[Token]) -> ParseResult<StmtNode> {
+    super::combinators::print_tokens("match_if", 40, tokens);
+
+    let match_if = map(
+        tuple((
+            TokenKind::If,
+            match_expr,
+            TokenKind::Colon,
+            TokenKind::Newline,
+            TokenKind::Indent,
+            match_block,
+            TokenKind::Unindent,
+        )),
+        |(_, cond, _, _, _, body, _)| (cond, body),
+    );
+    let match_elif = map(
+        tuple((
+            TokenKind::Elif,
+            match_expr,
+            TokenKind::Colon,
+            TokenKind::Newline,
+            TokenKind::Indent,
+            match_block,
+            TokenKind::Unindent,
+        )),
+        |(_, cond, _, _, _, body, _)| (cond, body),
+    );
+    let match_else = map(
+        tuple((
+            TokenKind::Else,
+            TokenKind::Colon,
+            TokenKind::Newline,
+            TokenKind::Indent,
+            match_block,
+            TokenKind::Unindent,
+        )),
+        |(_, _, _, _, body, _)| body,
+    );
+
+    map(
+        tuple((
+            match_comment,
+            match_if,
+            many0(match_elif),
+            opt(match_else),   
+        )),
+        |(comment, if_branch, elif_branches, else_branch)| IfStmt{
+            comment: comment,
+            if_branch: if_branch,
+            elif_branches: elif_branches,
+            else_branch: else_branch,
+        }.into()
+    )(tokens)
 }
 
 fn match_line(tokens: &[Token]) -> ParseResult<StmtNode> {
@@ -43,7 +103,7 @@ fn match_line(tokens: &[Token]) -> ParseResult<StmtNode> {
 }
 
 fn match_empty_line(token: &[Token]) -> ParseResult<StmtNode> {
-    map(TokenKind::Newline, |_| StmtNode::EmptyLine())(token)
+    value(StmtNode::EmptyLine(), TokenKind::Newline)(token)
 }
 
 fn match_comment(tokens: &[Token]) -> ParseResult<Comment> {

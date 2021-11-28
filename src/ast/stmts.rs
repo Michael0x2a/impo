@@ -1,7 +1,7 @@
 use super::exprs::ExprNode;
 use super::primitives::{Identifier, Name};
 
-type Block = Vec<StmtNode>;
+pub type Block = Vec<StmtNode>;
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub enum StmtNode{
@@ -156,8 +156,9 @@ impl From<FuncImplementationDefStmt> for StmtNode {
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct IfStmt {
     pub comment: Comment,
-    pub branches: Vec<(ExprNode, Block)>,
-    pub fallback_branch: Block,
+    pub if_branch: (ExprNode, Block),
+    pub elif_branches: Vec<(ExprNode, Block)>,
+    pub else_branch: Option<Block>,
 }
 
 impl From<IfStmt> for StmtNode {

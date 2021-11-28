@@ -32,6 +32,8 @@ pub fn lexer_test_ignore_positions<T: AsRef<TokenKind>>(
     input: &str,
     expected_token_kinds: impl Iterator<Item = T>,
 ) -> Result<(), LexerError> {
+    
+
     let mut lexer = Lexer::new(input);
     for (i, expected_kind) in expected_token_kinds.enumerate() {
         let actual = lexer.next_token()?;
