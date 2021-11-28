@@ -5,16 +5,14 @@ use nom::sequence::{pair, terminated};
 use crate::ast::stmts::*;
 
 use super::core::*;
-use super::combinators::*;
 use super::parse_expr::match_expr;
 
 pub fn parse(tokens: &[Token]) -> Result<Program, nom::Err<ParserError>> {
     let (rest, out) = complete(match_program)(tokens)?;
-    if let Some(extra_token) = rest.first() {
-        Err(err_unexpected_token(extra_token))
-    } else {
-        Ok(out)
-    }
+    rest.first().map_or(
+        Ok(out),
+        |extra_token| Err(err_unexpected_token(extra_token)),
+    )
 }
 
 fn match_program(tokens: &[Token]) -> ParseResult<Program> {

@@ -1,4 +1,3 @@
-use nom;
 use nom::error as nom_error;
 pub use crate::tokens::{Position, Token, TokenKind};
 
@@ -68,5 +67,5 @@ pub fn print_tokens(context: &'static str, amount: usize, tokens: &[Token]) {
         context,
         amount, 
         names,
-    )
+    );
 }

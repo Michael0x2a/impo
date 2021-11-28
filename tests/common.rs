@@ -79,9 +79,9 @@ struct PrettyString(String);
 
 /// Make diff to display string as multi-line string
 impl fmt::Debug for PrettyString {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     f.write_str(&self.0)
-  }
+}
 }
 
 fn to_pretty_string(s: &str) -> PrettyString {
