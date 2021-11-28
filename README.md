@@ -1,12 +1,23 @@
 # Impo
 
-Impo -- a minimalist language designed to be transpiled into mainstream imperative
-and object-oriented languages.
+Impo is a minimalist language that I hope to one day use as part of a larger
+project to help teach data structures and algorithms and other computer science
+fundamentals. (But in practice, is just an excuse for me to play around with
+Rust and LLVM.)
 
-To help make Impo easy to transpile, the language supports a very minimal featureset:
-effectively the lowest common denominator of the languages it transpiles.
+To support this ultimate goal, Impo has the following design goals:
 
-The language supports the following:
+1. The syntax should be as minimal as possible and closely resemble pseudocode.
+   It should look aesthetically pleasing when presented within a code snippet online.
+
+2. The language should have similar semantics to mainstream programming languages
+   (C#, Java, JavaScript, Python...) while still remaining minimal. It should stick
+   to supporting just the lowest common denominator of these languages and avoid
+   innovating too aggressively.
+
+3. The language should as easy to transpile as possible to the above languages.
+
+This language will support the following (conventional) language features:
 
 1.  Garbage collection
 2.  Basic imperative control flow features
@@ -14,12 +25,6 @@ The language supports the following:
 4.  Fixed-sized arrays
 5.  Static type checking (with type inference -- only function signatures and fields
     require type annotations)
-
-The language enforces the following conventions:
-
-1.  Function and method names should be `lower_camel_case`
-2.  Class names should be `UpperCamelCase`
-3.  Fields and methods that are intended to be private must be prefixed with an underscore.
 
 Some unusual aspects of this language include:
 
@@ -43,29 +48,50 @@ Some unusual aspects of this language include:
 
     This helps reduce complexity in the language spec.
 
-3.  Covariance or contravariance -- generics _must_ be invariant. Again, this helps
-    simplify the language design.
-
-4.  Statements may be preceded by "hints" which take the form `!key: value`.
+3.  Statements may be preceded by "hints" which take the form `!key: value`.
     These are ignored by the language, but are attached to the AST node for use by
     the transpiler.
 
     Hints attached to interface definitions are always applied to the respective
     methods in the implementing classes.
 
-5.  Neither operator overloading nor optional arguments are supported.
-    (TODO: Revisit)
-
-6.  Some method names are special and must be implemented according to a specific
+5.  Some method names are special and must be implemented according to a specific
     type signature. For example, the `equals` method must always match the type
     signature `func equals(other: Object) -> Bool`.
 
-Things that need to be revisited:
+Some decisions I'm still thinking about:
 
--   Exceptions vs panics vs returning a sentinal
+1.  Should covariance or contravariance be supported?
+
+2.  Should operator overloading or optional arguments be supported?
+
+3.  How should errors be propagated? Especially in a way that supports
+    transpiling to both languages that use exceptions (e.g. Java) and
+    languages that return errors or Result objects (Go or Rust).
+
+4.  Should union/sum types be supported?
+
+5.  How do modules work?
+
+6.  Should subtyping be supported?
 
 
-## Language spec
+## Task list
+
+- [x] Implement the parsing and lexing machinery.
+- [ ] Finish implementing the entire parser
+    - [x] For expressions
+    - [ ] For statements
+    - [ ] For types
+- [ ] Implement a type checker
+- [ ] Implement an interpreter and/or compiler using LLVM
+- [ ] Implement support for transpiling
+    - [ ] To Java
+    - [ ] To Python
+    - [ ] To JavaScript
+    - [ ] To Go
+
+## Example program and ad-hoc language spec
 
 ```
 const _DEFAULT_CAPACITY = 8
@@ -180,3 +206,4 @@ Other language decisions:
 
 1.  Scoping is per block, not per function.
 2.  Variables must be assigned a value upon declaration.
+
