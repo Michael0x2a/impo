@@ -1,19 +1,74 @@
-use nom::combinator::{all_consuming, complete, map};
-use nom::multi::many0;
+use nom::branch::{alt};
+use nom::combinator::{complete, map};
+use nom::multi::{many0, fold_many0};
+use nom::sequence::{pair, terminated};
 use crate::ast::stmts::*;
 
 use super::core::*;
+use super::combinators::*;
 use super::parse_expr::match_expr;
 
-pub fn parse(tokens: &[Token]) -> Result<Vec<StmtNode>, nom::Err<ParserError>> {
-    let (_, out) = all_consuming(complete(match_program))(tokens)?;
-    Ok(out)
+pub fn parse(tokens: &[Token]) -> Result<Program, nom::Err<ParserError>> {
+    let (rest, out) = complete(match_program)(tokens)?;
+    if let Some(extra_token) = rest.first() {
+        Err(err_unexpected_token(extra_token))
+    } else {
+        Ok(out)
+    }
 }
 
-fn match_program(tokens: &[Token]) -> ParseResult<Vec<StmtNode>> {
-    many0(match_stmt)(tokens)
+fn match_program(tokens: &[Token]) -> ParseResult<Program> {
+    map(
+        many0(match_stmt),
+        |body| Program{body: body},
+    )(tokens)
 }
 
 fn match_stmt(tokens: &[Token]) -> ParseResult<StmtNode> {
-    map(match_expr, |e| LineStmt{expr: e, comment: Comment::empty()}.into())(tokens)
+    alt((
+        match_line,
+        match_empty_line,
+    ))(tokens)
+}
+
+fn match_line(tokens: &[Token]) -> ParseResult<StmtNode> {
+    map(
+        terminated(
+            pair(match_comment, match_expr),
+            TokenKind::Newline,
+        ),
+        |(comment, expr)| LineStmt{
+            comment: comment,
+            expr: expr,
+        }.into(),
+    )(tokens)
+}
+
+fn match_empty_line(token: &[Token]) -> ParseResult<StmtNode> {
+    map(TokenKind::Newline, |_| StmtNode::EmptyLine())(token)
+}
+
+fn match_comment(tokens: &[Token]) -> ParseResult<Comment> {
+    fn match_single_comment(tokens: &[Token]) -> ParseResult<String> {
+        let (rest, token) = get_next(tokens, "comment")?;
+        let output = match &token.kind {
+            TokenKind::Comment(body) => body.clone(),
+            _ => {
+                return Err(err_bad_match("comment", token));
+            }
+        };
+        Ok((rest, output))
+    }
+
+    map(
+        fold_many0(
+            terminated(match_single_comment, TokenKind::Newline),
+            Vec::new,
+            |mut arr, line| {
+                arr.push(line);
+                arr
+            },
+        ),
+        Comment::new,
+    )(tokens)
 }

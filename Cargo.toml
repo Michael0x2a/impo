@@ -27,3 +27,7 @@ strum_macros = "0.22.0"
 
 # Other utilities
 itertools = "0.10.1"
+
+[dev-dependencies]
+pretty_assertions = "1.0.0"
+

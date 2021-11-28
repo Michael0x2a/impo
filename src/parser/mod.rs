@@ -1,4 +1,5 @@
 mod core;
+mod combinators;
 mod parse_stmt;
 mod parse_expr;
 

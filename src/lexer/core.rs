@@ -18,6 +18,15 @@ pub fn lex(text: impl AsRef<str>) -> Result<Vec<Token>, LexerError> {
         }
         tokens.push(tok);
     }
+    if let Some(last) = tokens.last() {
+        if last.kind != TokenKind::Newline {
+            let extra_newline = Token{
+                kind: TokenKind::Newline,
+                position: last.end_position(),
+            };
+            tokens.push(extra_newline);
+        }
+    }
     Ok(tokens)
 }
 

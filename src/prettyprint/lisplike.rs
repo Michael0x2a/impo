@@ -3,8 +3,8 @@ use crate::ast::*;
 use crate::string_utils::StringJoinExt;
 
 #[must_use]
-pub fn prettyprint_program(stmts: &[StmtNode]) -> String {
-    stmts.iter().map(prettyprint_stmt).join("")
+pub fn prettyprint_program(program: Program) -> String {
+    prettyprint_stmt(&program.into())
 }
 
 #[allow(clippy::too_many_lines)]
@@ -39,6 +39,11 @@ fn prettyprint_stmt(stmt: &StmtNode) -> String {
 
         let next = curr + 4;
         match stmt {
+            StmtNode::Program(s) => {
+                for child in &s.body {
+                    write_stmt(lines, curr, child);
+                }
+            },
             StmtNode::Import(s) => {
                 block("import", &s.comment, vec![
                     line(next, s.source.to_string()),
@@ -114,12 +119,15 @@ fn prettyprint_stmt(stmt: &StmtNode) -> String {
                 write_comment(lines, curr, &s.comment);
                 lines.push(line(curr, prettyprint_expr(&s.expr)));
             },
+            StmtNode::EmptyLine() => {
+                lines.push("".to_owned());
+            },
         }
     }
 
     let mut lines = Vec::new();
     write_stmt(&mut lines, 0, stmt);
-    lines.join("")
+    lines.join("\n")
 }
 
 fn prettyprint_expr(expr: &ExprNode) -> String {

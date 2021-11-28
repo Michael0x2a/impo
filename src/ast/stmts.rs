@@ -5,6 +5,8 @@ type Block = Vec<StmtNode>;
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub enum StmtNode{
+    Program(Box<Program>),
+
     // Module declarations
     Import(Box<ImportStmt>),
 
@@ -27,6 +29,18 @@ pub enum StmtNode{
     // Line-based primitives
     Assignment(Box<AssignmentStmt>),
     Line(Box<LineStmt>),
+    EmptyLine(),
+}
+
+#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+pub struct Program {
+    pub body: Block
+}
+
+impl From<Program> for StmtNode {
+    fn from(other: Program) -> StmtNode {
+        StmtNode::Program(Box::new(other))
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
@@ -35,6 +49,11 @@ pub struct Comment {
 }
 
 impl Comment {
+    #[must_use]
+    pub fn new(lines: Vec<String>) -> Comment {
+        Comment{lines: lines}
+    }
+
     #[must_use]
     pub fn empty() -> Comment {
         Comment{lines: Vec::new()}

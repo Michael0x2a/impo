@@ -105,46 +105,6 @@ pub fn get_next(
     Ok((rest, token))
 }
 
-pub fn fold1<I, OSeed, ONext, E, FSeed, FNext, FAcc>(
-    mut seed: FSeed,
-    mut next: FNext,
-    acc: FAcc,
-) -> impl FnMut(I) -> nom::IResult<I, OSeed, E>
-where
-    I: Clone,
-    E: nom::error::ParseError<I>,
-    FSeed: nom::Parser<I, OSeed, E>,
-    FNext: nom::Parser<I, ONext, E>,
-    FAcc: Fn(OSeed, ONext) -> OSeed,
-{
-    move |input| {
-        let (rest_seed, item_seed) = seed.parse(input)?;
-
-        let mut rest = rest_seed;
-        let mut curr = item_seed;
-        let mut found_none = true;
-        loop {
-            let r = rest.clone();
-            match next.parse(rest) {
-                Ok((rest_next, item_next)) => {
-                    curr = acc(curr, item_next);
-                    rest = rest_next;
-                    found_none = false ;
-                },
-                Err(nom::Err::Error(_)) => {
-                    if found_none {
-                        return Err(nom::Err::Error(E::from_error_kind(r, nom_error::ErrorKind::Many1)))
-                    }
-                    return Ok((r, curr))
-                },
-                Err(e) => {
-                    return Err(e);
-                },
-            }
-        }
-    }
-}
-
 pub fn err_unexpected_eof(target: impl AsRef<str>) -> nom::Err<ParserError> {
     nom::Err::Error(ParserError{
         span: None,
@@ -152,6 +112,15 @@ pub fn err_unexpected_eof(target: impl AsRef<str>) -> nom::Err<ParserError> {
         source: None,
     })
 }
+
+pub fn err_unexpected_token(token: &Token) -> nom::Err<ParserError> {
+    nom::Err::Error(ParserError{
+        span: Some(token.span()),
+        message: format!("Unexpected token '{}', expected EOF", token.kind.name()),
+        source: None,
+    })
+}
+
 
 pub fn err_bad_match(expected: &str, actual: &Token) -> nom::Err<ParserError> {
     nom::Err::Error(ParserError{
@@ -170,14 +139,4 @@ impl<'a> nom::Parser<&'a [Token], &'a Token, ParserError> for TokenKind {
             Err(err_bad_match(self.name(), token))
         }
     }
-}
-
-#[allow(dead_code)]
-pub fn debug<I, T, E>(message: &'static str, parser: impl nom::Parser<I, T, E>) -> impl nom::Parser<I, T, E>
-where T: std::fmt::Debug
-{
-    nom::combinator::map(parser, move |found| {
-        println!("{} produced {:?}", message, found);
-        found
-    })
 }
