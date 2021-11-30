@@ -1,3 +1,5 @@
+use struple::Struple;
+use crate::ast::types::FuncType;
 use super::exprs::ExprNode;
 use super::primitives::{Identifier, Name};
 
@@ -32,7 +34,7 @@ pub enum StmtNode{
     EmptyLine(),
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct Program {
     pub body: Block
 }
@@ -43,7 +45,7 @@ impl From<Program> for StmtNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct Comment {
     pub lines: Vec<String>,
 }
@@ -60,7 +62,7 @@ impl Comment {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct ImportStmt {
     pub comment: Comment,
     pub source: Identifier,
@@ -73,7 +75,7 @@ impl From<ImportStmt> for StmtNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct InterfaceDefStmt {
     pub comment: Comment,
     pub identifier: Identifier,
@@ -87,7 +89,7 @@ impl From<InterfaceDefStmt> for StmtNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct ClassDefStmt {
     pub comment: Comment,
     pub identifier: Identifier,
@@ -102,7 +104,7 @@ impl From<ClassDefStmt> for StmtNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct SentinalDefStmt {
     pub comment: Comment,
     pub identifier: Identifier,
@@ -114,7 +116,7 @@ impl From<SentinalDefStmt> for StmtNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct FieldSignatureDefStmt {
     pub comment: Comment,
     pub identifier: Identifier,
@@ -126,11 +128,13 @@ impl From<FieldSignatureDefStmt> for StmtNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct FuncSignatureDefStmt {
     pub comment: Comment,
-    pub identifier: Identifier,
-    pub params: Vec<Name>,
+    // TODO: Make this an AbsoluteIdentifier instead?
+    pub name: Name,
+    pub signature: FuncType,
+    pub param_names: Vec<Name>,
 }
 
 impl From<FuncSignatureDefStmt> for StmtNode {
@@ -139,11 +143,9 @@ impl From<FuncSignatureDefStmt> for StmtNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct FuncImplementationDefStmt {
-    pub comment: Comment,
-    pub identifier: Identifier,
-    pub params: Vec<Name>,
+    pub function: FuncSignatureDefStmt,
     pub body: Block,
 }
 
@@ -153,7 +155,7 @@ impl From<FuncImplementationDefStmt> for StmtNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct IfStmt {
     pub comment: Comment,
     pub if_branch: (ExprNode, Block),
@@ -167,7 +169,7 @@ impl From<IfStmt> for StmtNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct ForStmt{
     pub comment: Comment,
     pub variable: Name,
@@ -182,7 +184,7 @@ impl From<ForStmt> for StmtNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct ForeachStmt {
     pub comment: Comment,
     pub variables: Vec<Name>,
@@ -196,7 +198,7 @@ impl From<ForeachStmt> for StmtNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct WhileStmt {
     pub comment: Comment,
     pub cond: ExprNode,
@@ -209,7 +211,7 @@ impl From<WhileStmt> for StmtNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct ReturnStmt {
     pub comment: Comment,
     pub value: Option<ExprNode>,
@@ -221,10 +223,10 @@ impl From<ReturnStmt> for StmtNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct PanicStmt {
     pub comment: Comment,
-    pub value: Option<ExprNode>,
+    pub value: ExprNode,
 }
 
 impl From<PanicStmt> for StmtNode {
@@ -233,7 +235,7 @@ impl From<PanicStmt> for StmtNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct AssignmentStmt {
     pub comment: Comment,
     pub targets: Vec<ExprNode>,
@@ -246,7 +248,7 @@ impl From<AssignmentStmt> for StmtNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct LineStmt {
     pub comment: Comment,
     pub expr: ExprNode,

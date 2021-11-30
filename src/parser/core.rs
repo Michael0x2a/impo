@@ -121,7 +121,6 @@ pub fn err_unexpected_token(token: &Token) -> nom::Err<ParserError> {
     })
 }
 
-
 pub fn err_bad_match(expected: &str, actual: &Token) -> nom::Err<ParserError> {
     nom::Err::Error(ParserError{
         span: Some(actual.span()),

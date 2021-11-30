@@ -161,10 +161,12 @@ pub fn match_number(stream: &mut CharStream, c: char) -> Result<Option<TokenKind
     }
 
     let kind = if fractional_digits.is_empty() {
-        TokenKind::IntLiteral(IntLiteral{
-            base: base,
-            digits: integral_digits.into(),
-        })
+        IntLiteral::new(base, integral_digits.into())
+            .map(TokenKind::IntLiteral)
+            .map_err(|err| LexerError{
+                message: format!("Unexpected fatal error parsing number: {}", err),
+                position: stream.position(),
+            })?
     } else {
         TokenKind::FloatLiteral(FloatLiteral{
             integral_digits: integral_digits.into(),
@@ -175,7 +177,7 @@ pub fn match_number(stream: &mut CharStream, c: char) -> Result<Option<TokenKind
     Ok(Some(kind))
 }
 
-fn is_acceptable_digit(c: char, base: usize) -> bool {
+fn is_acceptable_digit(c: char, base: u32) -> bool {
     match base {
         10 => is_digit(c),
         16 => is_hex_digit(c),
@@ -225,6 +227,7 @@ mod tests {
                 TokenKind::IntLiteral(IntLiteral{
                     base: 10,
                     digits: "0".into(),
+                    raw_value: 0,
                 }),
                 TokenKind::FloatLiteral(FloatLiteral{
                     integral_digits: "0".into(),
@@ -234,18 +237,22 @@ mod tests {
                 TokenKind::IntLiteral(IntLiteral{
                     base: 10,
                     digits: "1234567890".into(),
+                    raw_value: 1234567890,
                 }),
                 TokenKind::IntLiteral(IntLiteral{
                     base: 16,
                     digits: "abcdef19".into(),
+                    raw_value: 2882400025,
                 }),
                 TokenKind::IntLiteral(IntLiteral{
                     base: 8,
                     digits: "12345670".into(),
+                    raw_value: 2739128,
                 }),
                 TokenKind::IntLiteral(IntLiteral{
                     base: 2,
                     digits: "10101010".into(),
+                    raw_value: 170,
                 }),
                 TokenKind::FloatLiteral(FloatLiteral{
                     integral_digits: "0".into(),
@@ -282,6 +289,7 @@ mod tests {
                 TokenKind::IntLiteral(IntLiteral{
                     base: 10,
                     digits: "3".into(),
+                    raw_value: 3,
                 }),
                 TokenKind::Dot,
                 TokenKind::Atom("foo".into()),

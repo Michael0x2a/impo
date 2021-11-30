@@ -1,6 +1,21 @@
 use nom::error as nom_error;
 pub use crate::tokens::{Position, Token, TokenKind};
 
+pub fn map_into<I, O1, O2, O3, E, F, G>(
+    mut parser: F, 
+    mut f: G,
+) -> impl FnMut(I) -> nom::IResult<I, O3, E>
+where
+  F: nom::Parser<I, O1, E>,
+  G: FnMut(O1) -> O2,
+  O2: Into<O3>,
+{
+  move |input: I| {
+    let (input, o1) = parser.parse(input)?;
+    Ok((input, f(o1).into()))
+  }
+}
+
 pub fn fold1<I, OSeed, ONext, E, FSeed, FNext, FAcc>(
     mut seed: FSeed,
     mut next: FNext,
@@ -39,6 +54,69 @@ where
             }
         }
     }
+}
+
+pub fn optional_delimited_list<I, O1, O2, O3, O4, E, P1, P2, P3, P4>(
+    left_delim: P1,
+    sep: P2,
+    element: P3,
+    right_delim: P4,
+) -> impl FnMut(I) -> nom::IResult<I, Vec<O3>, E>
+where
+    I: Clone + nom::InputLength,
+    E: nom::error::ParseError<I>,
+    P1: nom::Parser<I, O1, E>,
+    P2: nom::Parser<I, O2, E>,
+    P3: nom::Parser<I, O3, E>,
+    P4: nom::Parser<I, O4, E>,
+{
+    opt_or(
+        nom::sequence::delimited(
+            left_delim,
+            nom::multi::separated_list1(sep, element),
+            right_delim,
+        ),
+        Option::unwrap_or_default,
+    )
+}
+
+// Note that unlike optional_delimited_list, this combinator
+// will accept 0 or more params.
+pub fn delimited_list<I, O1, O2, O3, O4, E, P1, P2, P3, P4>(
+    left_delim: P1,
+    sep: P2,
+    element: P3,
+    right_delim: P4,
+) -> impl FnMut(I) -> nom::IResult<I, Vec<O3>, E>
+where
+    I: Clone + nom::InputLength,
+    E: nom::error::ParseError<I>,
+    P1: nom::Parser<I, O1, E>,
+    P2: nom::Parser<I, O2, E>,
+    P3: nom::Parser<I, O3, E>,
+    P4: nom::Parser<I, O4, E>,
+{
+    nom::sequence::delimited(
+        left_delim,
+        nom::multi::separated_list0(sep, element),
+        right_delim,
+    )
+}
+
+pub fn opt_or<I, O, E, P, D>(
+    parser: P,
+    default: D,
+) -> impl FnMut(I) -> nom::IResult<I, O, E>
+where
+    I: Clone,
+    E: nom::error::ParseError<I>,
+    P: nom::Parser<I, O, E>,
+    D: FnMut(Option<O>) -> O
+{
+    nom::combinator::map(
+        nom::combinator::opt(parser),
+        default,
+    )
 }
 
 #[allow(dead_code)]

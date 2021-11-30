@@ -1,62 +1,75 @@
-use super::primitives::Name;
+use derive_more::Constructor;
+use struple::Struple;
+
+use super::primitives::{Name, Identifier};
 use crate::tokens::Position;
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub enum TypeNode {
-    Class(Box<ClassType>),
-    Interface(Box<InterfaceType>),
-    Sentinal(Box<SentinalType>),
+    Reference(Box<ReferenceType>),
     Func(Box<FuncType>),
     Union(Box<UnionType>),
     Tuple(Box<TupleType>),
-    TypeVar(Box<TypeVarType>),
+    Unit,
+    Empty,
     Error(Box<ErrorType>),
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
-pub struct ClassType {
-    name: Name,
-    typevars: Vec<TypeVarType>,
-    entries: Vec<(Name, TypeNode)>,
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Constructor, Struple)]
+pub struct ReferenceType {
+    pub identifier: Identifier,
+    pub type_params: Vec<TypeNode>,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
-pub struct InterfaceType {
-    name: Name,
-    typevars: Vec<TypeVarType>,
-    entries: Vec<(Name, TypeNode)>,
+impl From<ReferenceType> for TypeNode {
+    fn from(other: ReferenceType) -> TypeNode {
+        TypeNode::Reference(Box::new(other))
+    }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
-pub struct SentinalType {
-    name: Name,
-}
-
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Constructor, Struple)]
 pub struct FuncType {
-    parent: Option<Box<InterfaceType>>,
-    typevars: Vec<TypeVarType>,
-    parameters: Vec<TypeNode>,
-    return_type: TypeNode,
+    pub typevars: Vec<Name>,
+    pub param_types: Vec<TypeNode>,
+    pub return_type: TypeNode,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+impl From<FuncType> for TypeNode {
+    fn from(other: FuncType) -> TypeNode {
+        TypeNode::Func(Box::new(other))
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Constructor, Struple)]
 pub struct UnionType {
-    variants: Vec<TypeNode>,
+    pub variants: Vec<TypeNode>,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+impl From<UnionType> for TypeNode {
+    fn from(other: UnionType) -> TypeNode {
+        TypeNode::Union(Box::new(other))
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Constructor, Struple)]
 pub struct TupleType {
-    items: Vec<TypeNode>,
+    pub items: Vec<TypeNode>,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
-pub struct TypeVarType {
-    name: Name,
+impl From<TupleType> for TypeNode {
+    fn from(other: TupleType) -> TypeNode {
+        TypeNode::Tuple(Box::new(other))
+    }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Constructor, Struple)]
 pub struct ErrorType {
-    message: String,
-    span: (Position, Position),
+    pub message: String,
+    pub span: (Position, Position),
+}
+
+impl From<ErrorType> for TypeNode {
+    fn from(other: ErrorType) -> TypeNode {
+        TypeNode::Error(Box::new(other))
+    }
 }

@@ -1,3 +1,4 @@
+use struple::Struple;
 use crate::tokens::Position;
 use crate::values::*;
 use super::primitives::Name;
@@ -10,7 +11,8 @@ pub enum ExprNode{
     Prefix(Box<PrefixExpr>),
     Index(Box<IndexExpr>),
     Range(Box<RangeExpr>),
-    Lookup(Box<LookupExpr>),
+    FieldLookup(Box<FieldLookupExpr>),
+    TupleLookup(Box<TupleLookupExpr>),
     Variable(Name),
     Array(Box<ArrayExpr>),
     Tuple(Box<TupleExpr>),
@@ -21,7 +23,7 @@ pub enum ExprNode{
     Error(Box<ErrorExpr>),
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct InfixExpr {
     // Invariants:
     // - exprs.len() == ops.len() + 1
@@ -147,7 +149,7 @@ impl InfixOp {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct PrefixExpr {
     pub expr: ExprNode,
     pub op: PrefixOp,
@@ -193,7 +195,7 @@ impl PrefixOp {
 }
 
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct FuncCallExpr {
     pub func: ExprNode,
     pub params: Vec<ExprNode>,
@@ -205,7 +207,7 @@ impl From<FuncCallExpr> for ExprNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct IndexExpr {
     pub source: ExprNode,
     pub index: ExprNode,
@@ -217,19 +219,32 @@ impl From<IndexExpr> for ExprNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
-pub struct LookupExpr {
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
+pub struct FieldLookupExpr {
     pub source: ExprNode,
     pub name_chain: Vec<Name>,
 }
 
-impl From<LookupExpr> for ExprNode {
-    fn from(other: LookupExpr) -> ExprNode {
-        ExprNode::Lookup(Box::new(other))
+impl From<FieldLookupExpr> for ExprNode {
+    fn from(other: FieldLookupExpr) -> ExprNode {
+        ExprNode::FieldLookup(Box::new(other))
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
+pub struct TupleLookupExpr {
+    pub source: ExprNode,
+    pub index_chain: Vec<usize>,
+}
+
+impl From<TupleLookupExpr> for ExprNode {
+    fn from(other: TupleLookupExpr) -> ExprNode {
+        ExprNode::TupleLookup(Box::new(other))
+    }
+}
+
+
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct RangeExpr {
     pub start: ExprNode,
     pub end: ExprNode,
@@ -241,7 +256,7 @@ impl From<RangeExpr> for ExprNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct ArrayExpr {
     pub items: Vec<ExprNode>,
 }
@@ -252,7 +267,7 @@ impl From<ArrayExpr> for ExprNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct TupleExpr {
     pub items: Vec<ExprNode>,
 }
@@ -263,8 +278,7 @@ impl From<TupleExpr> for ExprNode {
     }
 }
 
-
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct ErrorExpr{
     pub message: String,
     pub span: (Position, Position),

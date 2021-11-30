@@ -57,6 +57,15 @@ fn test_lookup() -> Result<(), AnyError> {
         "(a.b).c",
         "(lookup (paren (lookup a b)) c)",
     )?;
+    check(
+        "tup.1",
+        "(lookup tup 1)",
+    )?;
+    // TODO: Fix me, after moving generating floats up to the parsing stage
+    /*check(
+        "tup.1.2.3",
+        "(lookup tup 1 2 3)",
+    )?;*/
 
     Ok(())
 }
@@ -65,31 +74,31 @@ fn test_lookup() -> Result<(), AnyError> {
 fn test_func_calls() -> Result<(), AnyError> {
     check(
         "a()",
-        "(func a)",
+        "(call a)",
     )?;
     check(
         "a(p0)",
-        "(func a p0)",
+        "(call a p0)",
     )?;
     check(
         "a(p0, p1, p2)",
-        "(func a p0 p1 p2)",
+        "(call a p0 p1 p2)",
     )?;
     check(
         "a.b.c(p0, p1, p2)",
-        "(func (lookup a b c) p0 p1 p2)",
+        "(call (lookup a b c) p0 p1 p2)",
     )?;
     check(
         "f()()()",
-        "(func (func (func f)))",
+        "(call (call (call f)))",
     )?;
     check(
         "f(a)(b)(c)",
-        "(func (func (func f a) b) c)",
+        "(call (call (call f a) b) c)",
     )?;
     check(
         "(a.b).c.f()((a))()()",
-        "(func (func (func (func (lookup (paren (lookup a b)) c f)) (paren a))))",
+        "(call (call (call (call (lookup (paren (lookup a b)) c f)) (paren a))))",
     )?;
 
     Ok(())
@@ -107,7 +116,7 @@ fn test_index() -> Result<(), AnyError> {
     )?;
     check(
         "a[b](c)[d](e)",
-        "(func (index (func (index a b) c) d) e)",
+        "(call (index (call (index a b) c) d) e)",
     )?;
     check(
         "a[x to y]",

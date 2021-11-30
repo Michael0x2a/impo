@@ -1,11 +1,16 @@
 use nom::branch::{alt};
 use nom::combinator::{complete, map, opt, value};
 use nom::multi::{many0, many1, fold_many0};
-use nom::sequence::{pair, terminated, tuple};
-use crate::ast::stmts::*;
+use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
+use struple::Struple;
+
+use crate::ast::{FuncType, stmts::*};
+use crate::ast::types::TypeNode;
 
 use super::core::*;
-use super::parse_expr::match_expr;
+use super::combinators::*;
+use super::parse_expr::{match_expr, match_name};
+use super::parse_type::match_type;
 
 pub fn parse(tokens: &[Token]) -> Result<Program, nom::Err<ParserError>> {
     let (rest, out) = complete(match_program)(tokens)?;
@@ -28,15 +33,89 @@ fn match_block(tokens: &[Token]) -> ParseResult<Block> {
 
 fn match_stmt(tokens: &[Token]) -> ParseResult<StmtNode> {
     alt((
+        match_func_signature_def,
+        match_func_implementation_def,
         match_if,
         match_line,
+        match_return,
+        match_panic,
         match_empty_line,
     ))(tokens)
 }
 
-fn match_if(tokens: &[Token]) -> ParseResult<StmtNode> {
-    super::combinators::print_tokens("match_if", 40, tokens);
+fn match_func_signature_def(tokens: &[Token]) -> ParseResult<StmtNode> {
+    map(
+        terminated(match_func_header, TokenKind::Newline),
+        FuncSignatureDefStmt::into,
+    )(tokens)
+}
 
+fn match_func_implementation_def(tokens: &[Token]) -> ParseResult<StmtNode> {
+    map_into(
+        tuple((
+            match_func_header,
+            TokenKind::Colon,
+            TokenKind::Newline,
+            TokenKind::Indent,
+            match_block,
+            TokenKind::Unindent,
+        )),
+        |(function, _, _, _, body, _)| FuncImplementationDefStmt{
+            function: function,
+            body: body,
+        }
+    )(tokens)
+}
+
+fn match_func_header(tokens: &[Token]) -> ParseResult<FuncSignatureDefStmt> {
+    let match_type_vars = optional_delimited_list(
+        TokenKind::LSquare,
+        TokenKind::Comma,
+        match_name,
+        TokenKind::RSquare,
+    );
+    let match_params = delimited_list(
+        TokenKind::LParen,
+        TokenKind::Comma,
+        separated_pair(
+            match_name,
+            TokenKind::Colon,
+            match_type,
+        ),
+        TokenKind::RParen,
+    );
+    let match_return = opt_or(
+        preceded(
+            TokenKind::Arrow,
+            match_type,
+        ),
+        |o| o.unwrap_or(TypeNode::Unit),
+    );
+    map(
+        tuple((
+            match_comment,
+            preceded(TokenKind::Fn, match_name),
+            match_type_vars,
+            match_params,
+            match_return,
+        )),
+        |(comment, name, typevars, params, return_type)| {
+            let (param_names, param_types) = params.into_iter().unzip();
+            FuncSignatureDefStmt{
+                comment: comment,
+                name: name,
+                signature: FuncType{
+                    typevars: typevars,
+                    param_types: param_types,
+                    return_type: return_type,
+                },
+                param_names: param_names,
+            }
+        }
+    )(tokens)
+}
+
+fn match_if(tokens: &[Token]) -> ParseResult<StmtNode> {
     let match_if = map(
         tuple((
             TokenKind::If,
@@ -73,32 +152,44 @@ fn match_if(tokens: &[Token]) -> ParseResult<StmtNode> {
         |(_, _, _, _, body, _)| body,
     );
 
-    map(
+    map_into(
         tuple((
             match_comment,
             match_if,
             many0(match_elif),
             opt(match_else),   
         )),
-        |(comment, if_branch, elif_branches, else_branch)| IfStmt{
-            comment: comment,
-            if_branch: if_branch,
-            elif_branches: elif_branches,
-            else_branch: else_branch,
-        }.into()
+        IfStmt::from_tuple,
+    )(tokens)
+}
+
+fn match_return(tokens: &[Token]) -> ParseResult<StmtNode> {
+    map_into(
+        pair(
+            match_comment,
+            delimited(TokenKind::Return, opt(match_expr), TokenKind::Newline),
+        ),
+        ReturnStmt::from_tuple,
+    )(tokens)
+}
+
+fn match_panic(tokens: &[Token]) -> ParseResult<StmtNode> {
+    map_into(
+        pair(
+            match_comment,
+            delimited(TokenKind::Panic, opt(match_expr), TokenKind::Newline),
+        ),
+        ReturnStmt::from_tuple,
     )(tokens)
 }
 
 fn match_line(tokens: &[Token]) -> ParseResult<StmtNode> {
-    map(
+    map_into(
         terminated(
             pair(match_comment, match_expr),
             TokenKind::Newline,
         ),
-        |(comment, expr)| LineStmt{
-            comment: comment,
-            expr: expr,
-        }.into(),
+        LineStmt::from_tuple,
     )(tokens)
 }
 

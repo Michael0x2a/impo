@@ -1,0 +1,31 @@
+# Function header comment
+fn f1():
+    print("f1 a")
+    print("f1 b")
+
+fn f2(a: A, b: B) -> C:
+    print("f2")
+
+fn compose[T1, T2, T3](f1: Func[T1, T2], f2: Func[T2, T3]) -> fn(T1) -> T3:
+    fn inner(input: T1) -> T3:
+        return f2(f1(input))
+    return inner
+
+---
+
+# Function header comment
+(fn f1 (params) (type fn())
+    (call print "f1 a")
+    (call print "f1 b")
+)
+
+(fn f2 (params a b) (type fn(A, B) -> C)
+    (call print "f2")
+)
+
+(fn compose (params f1 f2) (type fn[T1, T2, T3](Func[T1, T2], Func[T2, T3]) -> fn(T1) -> T3)
+    (fn inner (params input) (type fn(T1) -> T3)
+        (return (call f2 (call f1 input)))
+    )
+    (return inner)
+)

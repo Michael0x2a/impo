@@ -10,12 +10,12 @@ print(a.b.c(x, y, z))
 
 ---
 
-(func print "hello world")
+(call print "hello world")
 
 # One-line comment
-(func print (infix 3 + 4))
+(call print (infix 3 + 4))
 
 # Multi-line comment 1
 # Multi-line comment 2
 # Multi-line comment 3
-(func print (func (lookup a b c) x y z))
+(call print (call (lookup a b c) x y z))

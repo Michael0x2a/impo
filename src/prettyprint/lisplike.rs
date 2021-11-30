@@ -81,7 +81,7 @@ fn prettyprint_stmt(stmt: &StmtNode) -> String {
             if prefix.is_empty() {
                 lines.push(format!("{}{}", indent, text));
             } else {
-                lines.push(format!("{}{}{}", indent, prefix, text));
+                lines.push(format!("{}({} {})", indent, prefix, text));
             }
         })
     }
@@ -92,6 +92,22 @@ fn prettyprint_stmt(stmt: &StmtNode) -> String {
                 write_stmt(stmt)(lines, level);
             }
         })
+    }
+
+    fn function_header(f: &FuncSignatureDefStmt) -> String {
+        format!(
+            "{} {} (type {})",
+            f.name.to_string(),
+            if f.param_names.is_empty() {
+                "(params)".to_owned()
+            } else {
+                format!(
+                    "(params {})",
+                    f.param_names.iter().join(" "),
+                )
+            },
+            prettyprint_func_type(&f.signature),
+        )
     }
 
     fn write_stmt(stmt: &StmtNode) -> Writer {
@@ -143,17 +159,17 @@ fn prettyprint_stmt(stmt: &StmtNode) -> String {
             StmtNode::FuncSignatureDef(s) => {
                 with_comment(
                     &s.comment,
-                    bare_block("fn", sequence(vec![
-                        literal("WIP".to_owned()),
-                    ]))
+                    literal(format!("(fn {})", function_header(s))),
                 )
             },
             StmtNode::FuncImplementationDef(s) => {
                 with_comment(
-                    &s.comment,
-                    bare_block("fn", sequence(vec![
-                        literal("WIP".to_owned()),
-                    ])),
+                    &s.function.comment,
+                    expr_block(
+                        "fn",
+                        vec![function_header(&s.function)],
+                        write_block(&s.body),
+                    ),
                 )
             },
             StmtNode::If(s) => {
@@ -207,17 +223,16 @@ fn prettyprint_stmt(stmt: &StmtNode) -> String {
             StmtNode::Return(s) => {
                 with_comment(
                     &s.comment,
-                    bare_block("return", sequence(vec![
-                        literal("WIP".to_owned()),
-                    ])),
+                    match s.value{
+                        Some(ref e) => line("return", e),
+                        None => literal("return".to_owned()),
+                    }
                 )
             },
             StmtNode::Panic(s) => {
                 with_comment(
                     &s.comment,
-                    bare_block("panic", sequence(vec![
-                        literal("WIP".to_owned()),
-                    ])),
+                    line("panic", &s.value),
                 )
             },
             StmtNode::Assignment(s) => {
@@ -255,12 +270,12 @@ fn prettyprint_expr(expr: &ExprNode) -> String {
             ExprNode::FuncCall(e) => {
                 if e.params.is_empty() {
                     format!(
-                        "(func {})", 
+                        "(call {})", 
                         print_expr(&e.func),
                     )
                 } else {
                     format!(
-                        "(func {} {})", 
+                        "(call {} {})", 
                         print_expr(&e.func),
                         print_exprs(&e.params),
                     )
@@ -294,10 +309,15 @@ fn prettyprint_expr(expr: &ExprNode) -> String {
                 print_expr(&e.start),
                 print_expr(&e.end),
             ),
-            ExprNode::Lookup(e) => format!(
+            ExprNode::FieldLookup(e) => format!(
                 "(lookup {} {})",
                 print_expr(&e.source),
                 e.name_chain.iter().join(" "),
+            ),
+            ExprNode::TupleLookup(e) => format!(
+                "(lookup {} {})",
+                print_expr(&e.source),
+                e.index_chain.iter().map(usize::to_string).join(" "),
             ),
             ExprNode::Variable(e) => e.to_string(),
             ExprNode::Array(e) => format!(
@@ -320,6 +340,56 @@ fn prettyprint_expr(expr: &ExprNode) -> String {
     }
 
     print_expr(expr)
+}
+
+fn prettyprint_type(typ: &TypeNode) -> String {
+    match typ {
+        TypeNode::Reference(t) => format!(
+            "{}{}",
+            t.identifier,
+            bracket_if_exists(prettyprint_types(&t.type_params)),
+        ),
+        TypeNode::Func(t) => prettyprint_func_type(t),
+        TypeNode::Union(t) => t.variants
+            .iter()
+            .map(prettyprint_type)
+            .join(" | "),
+        TypeNode::Tuple(t) => format!(
+            "({})",
+            prettyprint_types(&t.items),
+        ),
+        TypeNode::Unit => "()".to_owned(),
+        TypeNode::Empty => "!".to_owned(),
+        TypeNode::Error(t) => format!(
+            "(error {})",
+            quote(&t.message),
+        ),
+    }
+}
+
+fn prettyprint_types(types: &[TypeNode]) -> String {
+    types.iter().map(prettyprint_type).join(", ")
+}
+
+fn bracket_if_exists(s: String) -> String {
+    if s.is_empty() {
+        s
+    } else {
+        format!("[{}]", s)
+    }
+}
+
+fn prettyprint_func_type(f: &FuncType) -> String {
+    format!(
+        "fn{}({}){}",
+        bracket_if_exists(f.typevars.iter().join(", ")),
+        prettyprint_types(&f.param_types),
+        if f.return_type == TypeNode::Unit {
+            "".to_owned()
+        } else {
+            format!(" -> {}", prettyprint_type(&f.return_type))
+        }
+    )
 }
 
 fn quote(s: impl AsRef<str>) -> String {

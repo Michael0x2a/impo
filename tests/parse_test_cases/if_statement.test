@@ -52,49 +52,49 @@ if (a + b + c
 
 (if
     (if-branch true
-        (func print a1)
-        (func print a2)
+        (call print a1)
+        (call print a2)
     )
 )
 
 (if
     (if-branch (infix (infix 3 + 4) == 7)
-        (func print b1)
-        (func print b2)
+        (call print b1)
+        (call print b2)
     )
-    (elif-branch (infix (infix (func foo) * (func bar)) < (lookup baz qux))
-        (func print b3)
-        (func print b4)
+    (elif-branch (infix (infix (call foo) * (call bar)) < (lookup baz qux))
+        (call print b3)
+        (call print b4)
     )
     (elif-branch (infix 3 < a < 10)
-        (func print b5)
-        (func print b6)
+        (call print b5)
+        (call print b6)
     )
 )
 
 (if
     (if-branch c1
-        (func print c2)
+        (call print c2)
     )
     (elif-branch c3
-        (func print c4)
+        (call print c4)
     )
     (else-branch
-        (func print c5)
+        (call print c5)
     )
 )
 
 # If statement with comment
 (if
     (if-branch true
-        (func print d1)
+        (call print d1)
         # And a nested comment
-        (func print d2)
+        (call print d2)
     )
     (else-branch
-        (func print d3)
+        (call print d3)
 
-        (func print d4)
+        (call print d4)
     )
 )
 
@@ -102,29 +102,29 @@ if (a + b + c
     (if-branch x1
         (if
             (if-branch y1
-                (func print e1)
+                (call print e1)
             )
             (elif-branch y2
-                (func print e2)
+                (call print e2)
             )
         )
     )
     (elif-branch x2
-        (func print e4)
+        (call print e4)
         (if
             (if-branch y3
-                (func print e5)
+                (call print e5)
             )
             (else-branch
-                (func print e6)
+                (call print e6)
             )
         )
-        (func print e7)
+        (call print e7)
     )
 )
 
 (if
     (if-branch (paren (infix a + b + c + d + e + f))
-        (func print f1)
+        (call print f1)
     )
 )

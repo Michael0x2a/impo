@@ -3,6 +3,7 @@ use nom::combinator::{map, opt};
 use nom::error::context;
 use nom::multi::{many1, separated_list0};
 use nom::sequence::{delimited, pair, preceded};
+use struple::Struple;
 
 use crate::ast::exprs::*;
 use crate::ast::primitives::*;
@@ -221,33 +222,47 @@ fn match_call_like(tokens: &[Token]) -> ParseResult<ExprNode> {
 fn match_unit(tokens: &[Token]) -> ParseResult<ExprNode> {
     context(
         "match_unit", 
-        alt((match_lookup, match_atom)),
+        alt((match_field_lookup, match_tuple_lookup, match_atom)),
     )(tokens)
 }
 
-fn match_lookup(tokens: &[Token]) -> ParseResult<ExprNode> {
-    let (rest, (parent, name_chain)) = context(
+fn match_field_lookup(tokens: &[Token]) -> ParseResult<ExprNode> {
+    context(
         "match_lookup",
-        pair(
-            match_atom, 
-            many1(preceded(
-                TokenKind::Dot, 
-                match_name,
-            )),
+        map_into(
+            pair(
+                match_atom, 
+                many1(preceded(
+                    TokenKind::Dot, 
+                    match_name,
+                )),
+            ),
+            FieldLookupExpr::from_tuple,
         )
-    )(tokens)?;
-    let expr = LookupExpr{
-        source: parent,
-        name_chain: name_chain,
-    };
-    Ok((rest, expr.into()))
+    )(tokens)
+}
+
+fn match_tuple_lookup(tokens: &[Token]) -> ParseResult<ExprNode> {
+    context(
+        "match_lookup",
+        map_into(
+            pair(
+                match_atom, 
+                many1(preceded(
+                    TokenKind::Dot, 
+                    match_integer,
+                )),
+            ),
+            TupleLookupExpr::from_tuple,
+        )
+    )(tokens)
 }
 
 // Atom -- a small, indivisible unit
 fn match_atom(tokens: &[Token]) -> ParseResult<ExprNode> {
     context(
         "match_atom",
-    alt((match_variable, match_literal, match_group)),
+        alt((match_variable, match_literal, match_group)),
     )(tokens)
 }
 
@@ -255,7 +270,7 @@ fn match_variable(tokens: &[Token]) -> ParseResult<ExprNode> {
     map(match_name, ExprNode::Variable)(tokens)
 }
 
-fn match_name(tokens: &[Token]) -> ParseResult<Name> {
+pub fn match_name(tokens: &[Token]) -> ParseResult<Name> {
     let (rest, token) = get_next(tokens, "name")?;
     match &token.kind {
         TokenKind::Atom(iden) => {
@@ -276,6 +291,19 @@ fn match_literal(tokens: &[Token]) -> ParseResult<ExprNode> {
         TokenKind::StringLiteral(lit) => lit.clone().into(),
         _ => {
             return Err(err_bad_match("literal", token));
+        }
+    };
+    Ok((rest, output))
+}
+
+fn match_integer(tokens: &[Token]) -> ParseResult<usize> {
+    let (rest, token) = get_next(tokens, "int literal")?;
+    let output = match &token.kind {
+        TokenKind::IntLiteral(lit) if lit.base == 10 => {
+            lit.raw_value
+        },
+        _ => {
+            return Err(err_bad_match("int literal", token));
         }
     };
     Ok((rest, output))
@@ -326,9 +354,9 @@ mod tests {
             atom("baz"),
         ];
         parser_test(
-            match_lookup,
+            match_field_lookup,
             &generate_positions(&token_kinds),
-            LookupExpr{
+            FieldLookupExpr{
                 source: variable("foo"),
                 name_chain: vec![
                     "bar".into(),
@@ -352,11 +380,11 @@ mod tests {
             atom("qux"),
         ];
         parser_test(
-            match_lookup,
+            match_field_lookup,
             &generate_positions(&token_kinds),
-            LookupExpr{
+            FieldLookupExpr{
                 source: ExprNode::ExplicitParenthesis(Box::new(
-                    LookupExpr{
+                    FieldLookupExpr{
                         source: variable("foo"),
                         name_chain: vec![
                             "bar".into(),
@@ -377,6 +405,7 @@ mod tests {
             TokenKind::IntLiteral(IntLiteral{
                 base: 10,
                 digits: "123".into(),
+                raw_value: 123,
             }),
             TokenKind::FloatLiteral(FloatLiteral{
                 integral_digits: "123".into(),
@@ -394,6 +423,7 @@ mod tests {
                 IntLiteral{
                     base: 10,
                     digits: "123".into(),
+                    raw_value: 123,
                 }.into(),
                 FloatLiteral{
                     integral_digits: "123".into(),

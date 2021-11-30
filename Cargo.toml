@@ -21,9 +21,11 @@ string_cache = "0.8.2"
 # Parsing
 nom = "7.1.0"
 
-# Macros for enums
+# Macros for deriving enums, tuples, and structs
 strum = "0.22.0"
 strum_macros = "0.22.0"
+struple = "0.1.1"
+derive_more = "0.99.16"
 
 # Other utilities
 itertools = "0.10.1"

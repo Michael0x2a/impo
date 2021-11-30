@@ -55,10 +55,6 @@ Some unusual aspects of this language include:
     Hints attached to interface definitions are always applied to the respective
     methods in the implementing classes.
 
-5.  Some method names are special and must be implemented according to a specific
-    type signature. For example, the `equals` method must always match the type
-    signature `func equals(other: Object) -> Bool`.
-
 Some decisions I'm still thinking about:
 
 1.  Should covariance or contravariance be supported?
@@ -101,7 +97,7 @@ interface List[T]:
     fn set_item(index: Int, value: T)
     fn append(value: T)
     fn length() -> Int
-    fn equals(other: Object) -> Bool
+    fn equals(other: Self) -> Bool
 
 sentinal IteratorDone
 
@@ -139,10 +135,7 @@ class ArrayList[T] implements List[T]:
     fn length() -> Int:
         return this._length
 
-    # TODO: Figure out this corner of the language
-    fn equals(other: Object) -> Bool:
-        if !(this instanceof ArrayList[T]):
-            return false
+    fn equals(other: This) -> Bool:
         if this._length != other._length:
             return false
         for i from 0 to this._length:
@@ -184,6 +177,10 @@ fn assert(cond: Bool, message: String):
         panic message
 ```
 
+## Misc language details
+
+### Builtins
+
 There are several build-in types:
 
 1.  `Array[T]`, a fixed-size array containing items of type `T`
@@ -191,7 +188,7 @@ There are several build-in types:
 3.  `Int`, a integer (usually 64 bits)
 4.  `Float`, a floating-point (usually 64 bits)
 5.  `Bool`, a true or false value
-6.  `None`, which means basically the same thing as Python's `None`
+6.  `Nil`, which means basically the same thing as Python's `None`
 7.  `Empty`, which is a type containing no values.
 8.  `String`, an opaque UTF-8 string. That is, string indexing and iteration
     is not supported.
@@ -199,11 +196,50 @@ There are several build-in types:
 
 There are also several build-in values:
 
-1.  `none`
+1.  `nil`
 2.  `true` and `false`
+
+Within a method, the following builtins are also defined:
+
+1.  The `This` type, a special generic type referring to the current instance type.
+2.  The `this` variable, which refers to the current instance.
+
+### Scoping and declarations
 
 Other language decisions:
 
 1.  Scoping is per block, not per function.
 2.  Variables must be assigned a value upon declaration.
 
+### Comparisons
+
+Some method names are special and must be implemented according to a specific
+type signature. Specifically:
+
+1.  The `equals` method must always be `func equals(other: Self) -> Bool`.
+2.  The `hash` method must always be `func hash() -> Int`.
+3.  The `less_than` method must always be `func less_than(other: Self) -> Bool`
+
+Other rules:
+
+1.  If `hash` is implemented, `equals` must also be implemented
+2.  If `less_than` is implemented, `equals` must also be implemented. That is,
+    we only support total ordering, not partial totaling. (The goal is partly
+    to ensure we can cleanly transpile to a maximal subset of languages, and
+    partly to avoid falling into this trap: https://arxiv.org/abs/1911.12338)
+
+We add support for the following syntactic sugar:
+
+1.  Implementing `equals` adds syntatic sugar for `a == b` and `a != b`.
+2.  Implementing `less_than` (and therefore also `equals`) adds syntactic
+    sugar for using `a < b`, `a <= b`, `a > b`, and `a >= b`.
+
+### Tuples
+
+Tuples have relatively limited power in the language. In particular:
+
+1.  Tuples are not iterable or indexable. Instead, the syntax is `tup.0`, `tup.1`, etc.
+2.  The empty tuple is identical to the unit type.
+3.  There is no way of constructing a 1-element tuple.
+4.  Tuples must have a fixed length.
+5.  There is no way of dynamically constructing a tuple (e.g. from a list).

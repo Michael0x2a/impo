@@ -3,11 +3,21 @@ use string_cache::DefaultAtom as Atom;
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct IntLiteral{
-    pub base: usize,
+    pub base: u32,
     pub digits: Atom,
+    pub raw_value: usize,
 }
 
 impl IntLiteral {
+    pub fn new(base: u32, digits: Atom) -> Result<IntLiteral, std::num::ParseIntError> {
+        let raw_value = usize::from_str_radix(&digits, base)?;
+        Ok(IntLiteral{
+            base: base,
+            digits: digits,
+            raw_value: raw_value,
+        })
+    }
+
     #[must_use]
     pub fn char_len(&self) -> usize {
         self.digits.chars().count() + if self.base == 10 { 0 } else { 2 }
