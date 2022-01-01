@@ -207,9 +207,14 @@ fn prettyprint_stmt(stmt: &StmtNode) -> String {
             StmtNode::Foreach(s) => {
                 with_comment(
                     &s.comment,
-                    bare_block("foreach", sequence(vec![
-                        literal("WIP".to_owned()),
-                    ])),
+                    expr_block(
+                        "foreach",
+                        vec![
+                            format!("(vars {})", &s.variables.iter().join(" ")),
+                            prettyprint_expr(&s.iterable),
+                        ],
+                        write_block(&s.body),
+                    ),
                 )
             },
             StmtNode::While(s) => {

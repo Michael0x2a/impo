@@ -1,6 +1,6 @@
 use nom::branch::{alt};
 use nom::combinator::{complete, map, opt, value};
-use nom::multi::{many0, many1, fold_many0};
+use nom::multi::{many0, many1, fold_many0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
 use struple::Struple;
 
@@ -31,10 +31,19 @@ fn match_block(tokens: &[Token]) -> ParseResult<Block> {
     many1(match_stmt)(tokens)
 }
 
+fn match_indented_block(tokens: &[Token]) -> ParseResult<Block> {
+    delimited(
+        tuple((TokenKind::Colon, TokenKind::Newline, TokenKind::Indent)),
+        match_block,
+        TokenKind::Unindent,
+    )(tokens)
+}
+
 fn match_stmt(tokens: &[Token]) -> ParseResult<StmtNode> {
     alt((
         match_func_signature_def,
         match_func_implementation_def,
+        match_foreach,
         match_if,
         match_assignment,
         match_line,
@@ -55,16 +64,9 @@ fn match_func_implementation_def(tokens: &[Token]) -> ParseResult<StmtNode> {
     map_into(
         tuple((
             match_func_header,
-            TokenKind::Colon,
-            TokenKind::Newline,
-            TokenKind::Indent,
-            match_block,
-            TokenKind::Unindent,
+            match_indented_block,
         )),
-        |(function, _, _, _, body, _)| FuncImplementationDefStmt{
-            function: function,
-            body: body,
-        }
+        FuncImplementationDefStmt::from_tuple,
     )(tokens)
 }
 
@@ -116,41 +118,42 @@ fn match_func_header(tokens: &[Token]) -> ParseResult<FuncSignatureDefStmt> {
     )(tokens)
 }
 
-fn match_if(tokens: &[Token]) -> ParseResult<StmtNode> {
-    let match_if = map(
+fn match_foreach(tokens: &[Token]) -> ParseResult<StmtNode> {
+    map_into(
         tuple((
+            match_comment,
+            preceded(
+                TokenKind::Foreach,
+                separated_list1(TokenKind::Comma, match_name),
+            ),
+            preceded(
+                TokenKind::In,
+                match_expr,
+            ),
+            match_indented_block,
+        )),
+        ForeachStmt::from_tuple,
+    )(tokens)
+}
+
+fn match_if(tokens: &[Token]) -> ParseResult<StmtNode> {
+    let match_if = tuple((
+        preceded(
             TokenKind::If,
             match_expr,
-            TokenKind::Colon,
-            TokenKind::Newline,
-            TokenKind::Indent,
-            match_block,
-            TokenKind::Unindent,
-        )),
-        |(_, cond, _, _, _, body, _)| (cond, body),
-    );
-    let match_elif = map(
-        tuple((
+        ),
+        match_indented_block,
+    ));
+    let match_elif = tuple((
+        preceded(
             TokenKind::Elif,
             match_expr,
-            TokenKind::Colon,
-            TokenKind::Newline,
-            TokenKind::Indent,
-            match_block,
-            TokenKind::Unindent,
-        )),
-        |(_, cond, _, _, _, body, _)| (cond, body),
-    );
-    let match_else = map(
-        tuple((
-            TokenKind::Else,
-            TokenKind::Colon,
-            TokenKind::Newline,
-            TokenKind::Indent,
-            match_block,
-            TokenKind::Unindent,
-        )),
-        |(_, _, _, _, body, _)| body,
+        ),
+        match_indented_block,
+    ));
+    let match_else = preceded(
+        TokenKind::Else,
+        match_indented_block,
     );
 
     map_into(

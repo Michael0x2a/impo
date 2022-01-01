@@ -1,0 +1,19 @@
+foreach a in iter1:
+    print(a)
+
+# Multiple names
+foreach a, b in obj.method():
+    print(a)
+    print(b)
+
+---
+
+(foreach (vars a) iter1
+    (call print a)
+)
+
+# Multiple names
+(foreach (vars a b) (call (lookup obj method))
+    (call print a)
+    (call print b)
+)
