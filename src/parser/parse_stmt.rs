@@ -43,6 +43,7 @@ fn match_stmt(tokens: &[Token]) -> ParseResult<StmtNode> {
     alt((
         match_func_signature_def,
         match_func_implementation_def,
+        match_while,
         match_foreach,
         match_if,
         match_assignment,
@@ -115,6 +116,20 @@ fn match_func_header(tokens: &[Token]) -> ParseResult<FuncSignatureDefStmt> {
                 param_names: param_names,
             }
         }
+    )(tokens)
+}
+
+fn match_while(tokens: &[Token]) -> ParseResult<StmtNode> {
+    map_into(
+        tuple((
+            match_comment,
+            preceded(
+                TokenKind::While,
+                match_expr,
+            ),
+            match_indented_block,
+        )),
+        WhileStmt::from_tuple,
     )(tokens)
 }
 
