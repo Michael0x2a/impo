@@ -238,7 +238,7 @@ impl From<PanicStmt> for StmtNode {
 #[derive(Clone, PartialEq, Eq, Debug, Hash, Struple)]
 pub struct AssignmentStmt {
     pub comment: Comment,
-    pub targets: Vec<ExprNode>,
+    pub target: ExprNode,
     pub value: ExprNode,
 }
 

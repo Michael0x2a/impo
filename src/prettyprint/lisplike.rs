@@ -74,10 +74,10 @@ fn prettyprint_stmt(stmt: &StmtNode) -> String {
         })
     }
 
-    fn line<'a>(prefix: &'static str, expr: &'a ExprNode) -> Writer<'a> {
+    fn line<'a>(prefix: &'static str, parts: Vec<String>) -> Writer<'a> {
         Box::new(move |lines, level| {
             let indent = " ".repeat(level);
-            let text = prettyprint_expr(expr);
+            let text = parts.join(" ");
             if prefix.is_empty() {
                 lines.push(format!("{}{}", indent, text));
             } else {
@@ -224,7 +224,7 @@ fn prettyprint_stmt(stmt: &StmtNode) -> String {
                 with_comment(
                     &s.comment,
                     match s.value{
-                        Some(ref e) => line("return", e),
+                        Some(ref e) => line("return", vec![prettyprint_expr(e)]),
                         None => literal("return".to_owned()),
                     }
                 )
@@ -232,21 +232,22 @@ fn prettyprint_stmt(stmt: &StmtNode) -> String {
             StmtNode::Panic(s) => {
                 with_comment(
                     &s.comment,
-                    line("panic", &s.value),
+                    line("panic", vec![prettyprint_expr(&s.value)]),
                 )
             },
             StmtNode::Assignment(s) => {
                 with_comment(
                     &s.comment,
-                    bare_block("assignment", sequence(vec![
-                        literal("WIP".to_owned()),
-                    ])),
+                    line(
+                        "assign",
+                        vec![prettyprint_expr(&s.target), prettyprint_expr(&s.value)],
+                    ),
                 )
             },
             StmtNode::Line(s) => {
                 with_comment(
                     &s.comment,
-                    line("", &s.expr),
+                    line("", vec![prettyprint_expr(&s.expr)]),
                 )
             },
             StmtNode::EmptyLine() => {

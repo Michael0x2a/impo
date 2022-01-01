@@ -29,7 +29,7 @@ impl Identifier {
         Identifier{
             parent: parts.get(0..parts.len()-1)
                 .into_iter()
-                .flat_map(|p| p.iter())
+                .flat_map(<[&str]>::iter)
                 .map(|&p| p.into())
                 .collect(),
             name: parts

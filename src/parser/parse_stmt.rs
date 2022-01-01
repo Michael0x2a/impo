@@ -36,6 +36,7 @@ fn match_stmt(tokens: &[Token]) -> ParseResult<StmtNode> {
         match_func_signature_def,
         match_func_implementation_def,
         match_if,
+        match_assignment,
         match_line,
         match_return,
         match_panic,
@@ -160,6 +161,23 @@ fn match_if(tokens: &[Token]) -> ParseResult<StmtNode> {
             opt(match_else),   
         )),
         IfStmt::from_tuple,
+    )(tokens)
+}
+
+fn match_assignment(tokens: &[Token]) -> ParseResult<StmtNode> {
+    map_into(
+        terminated(
+            tuple((
+                match_comment,
+                match_expr,
+                TokenKind::Assign,
+                match_expr,
+            )),
+            TokenKind::Newline,
+        ),
+        |(comment, left, _, right)| {
+            AssignmentStmt::from_tuple((comment, left, right))
+        },
     )(tokens)
 }
 

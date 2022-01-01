@@ -57,15 +57,6 @@ fn test_lookup() -> Result<(), AnyError> {
         "(a.b).c",
         "(lookup (paren (lookup a b)) c)",
     )?;
-    check(
-        "tup.1",
-        "(lookup tup 1)",
-    )?;
-    // TODO: Fix me, after moving generating floats up to the parsing stage
-    /*check(
-        "tup.1.2.3",
-        "(lookup tup 1 2 3)",
-    )?;*/
 
     Ok(())
 }
@@ -125,6 +116,24 @@ fn test_index() -> Result<(), AnyError> {
     check(
         "a[1 + x to 3 * y]",
         "(index a (range (infix 1 + x) (infix 3 * y)))",
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn test_tuples() -> Result<(), AnyError> {
+    check(
+        "(a, b)",
+        "(tuple a b)",
+    )?;
+    check(
+        "((a, b))",
+        "(paren (tuple a b))",
+    )?;
+    check(
+        "(a, b, (c, d, (e)))",
+        "(tuple a b (tuple c d (paren e)))",
     )?;
 
     Ok(())

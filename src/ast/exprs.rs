@@ -272,6 +272,13 @@ pub struct TupleExpr {
     pub items: Vec<ExprNode>,
 }
 
+impl TupleExpr {
+    #[must_use]
+    pub fn new(items: Vec<ExprNode>) -> TupleExpr {
+        TupleExpr{ items: items }
+    }
+}
+
 impl From<TupleExpr> for ExprNode {
     fn from(other: TupleExpr) -> ExprNode {
         ExprNode::Tuple(Box::new(other))
