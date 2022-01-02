@@ -1,13 +1,21 @@
-# Assignment header
-a = 1
-b = 2 + 3
-(c, d) = (4, 5)
-e.f.g = (6, 7)
+basic_assignment:
+    code:
+        # Assignment header
+        a = 1
+        b = 2 + 3
+        (c, d) = (4, 5)
+        e.f.g = (6, 7)
+        
+    parse_tree:
+        # Assignment header
+        (assign a 1)
+        (assign b (infix 2 + 3))
+        (assign (tuple c d) (tuple 4 5))
+        (assign (lookup e f g) (tuple 6 7))
 
----
-
-# Assignment header
-(assign a 1)
-(assign b (infix 2 + 3))
-(assign (tuple c d) (tuple 4 5))
-(assign (lookup e f g) (tuple 6 7))
+test_assignment:
+    code:
+        a = 1
+    
+    parse_tree:
+        (assign a 1)

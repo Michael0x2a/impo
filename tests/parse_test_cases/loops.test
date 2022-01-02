@@ -1,44 +1,48 @@
-foreach a in iter1:
-    print(a)
+basic_foreach:
+    code:
+        foreach a in iter1:
+            print(a)
 
-# Multiple names
-foreach a, b in obj.method():
-    print(a)
-    print(b)
+        # Multiple names
+        foreach a, b in obj.method():
+            print(a)
+            print(b)
+    
+    parse_tree:
+        (foreach (vars a) iter1
+            (call print a)
+        )
 
-while cond():
-    print(a)
+        # Multiple names
+        (foreach (vars a b) (call (lookup obj method))
+            (call print a)
+            (call print b)
+        )
 
-# More complex condition
-while a + b == 0:
-    a = a + 1
+basic_while:
+    code:
+        while cond():
+            print(a)
 
-# Loop forever
-while true:
-    print(a)
+        # More complex condition
+        while a + b == 0:
+            a = a + 1
 
----
+        # Loop forever
+        while true:
+            print(a)
+    
+    parse_tree:
+        (while (call cond)
+            (call print a)
+        )
 
-(foreach (vars a) iter1
-    (call print a)
-)
+        # More complex condition
+        (while (infix (infix a + b) == 0)
+            (assign a (infix a + 1))
+        )
 
-# Multiple names
-(foreach (vars a b) (call (lookup obj method))
-    (call print a)
-    (call print b)
-)
-
-(while (call cond)
-    (call print a)
-)
-
-# More complex condition
-(while (infix (infix a + b) == 0)
-    (assign a (infix a + 1))
-)
-
-# Loop forever
-(while true
-    (call print a)
-)
+        # Loop forever
+        (while true
+            (call print a)
+        )

@@ -1,130 +1,146 @@
-if true:
-    print(a1)
-    print(a2)
-
-if 3 + 4 == 7:
-    print(b1)
-    print(b2)
-elif foo() * bar() < baz.qux:
-    print(b3)
-    print(b4)
-elif 3 < a < 10:
-    print(b5)
-    print(b6)
-
-if c1:
-    print(c2)
-elif c3:
-    print(c4)
-else:
-    print(c5)
-
-# If statement with comment
-if true:
-    print(d1)
-    # And a nested comment
-    print(d2)
-else:
-    print(d3)
-
-    print(d4)
-
-if x1:
-    if y1:
-        print(e1)
-    elif y2:
-        print(e2)
-elif x2:
-    print(e4)
-    if y3:
-        print(e5)
-    else:
-        print(e6)
-    print(e7)
-
-if (a + b + c
-    + d 
-        + e +
-            f):
-    print(f1)
-
----
-
-(if
-    (if-branch true
-        (call print a1)
-        (call print a2)
-    )
-)
-
-(if
-    (if-branch (infix (infix 3 + 4) == 7)
-        (call print b1)
-        (call print b2)
-    )
-    (elif-branch (infix (infix (call foo) * (call bar)) < (lookup baz qux))
-        (call print b3)
-        (call print b4)
-    )
-    (elif-branch (infix 3 < a < 10)
-        (call print b5)
-        (call print b6)
-    )
-)
-
-(if
-    (if-branch c1
-        (call print c2)
-    )
-    (elif-branch c3
-        (call print c4)
-    )
-    (else-branch
-        (call print c5)
-    )
-)
-
-# If statement with comment
-(if
-    (if-branch true
-        (call print d1)
-        # And a nested comment
-        (call print d2)
-    )
-    (else-branch
-        (call print d3)
-
-        (call print d4)
-    )
-)
-
-(if
-    (if-branch x1
+basic_if:
+    code:
+        if true:
+            print(a1)
+            print(a2)
+    
+    parse_tree:
         (if
-            (if-branch y1
-                (call print e1)
-            )
-            (elif-branch y2
-                (call print e2)
+            (if-branch true
+                (call print a1)
+                (call print a2)
             )
         )
-    )
-    (elif-branch x2
-        (call print e4)
+
+basic_if_elif:
+    code:
+        if 3 + 4 == 7:
+            print(b1)
+            print(b2)
+        elif foo() * bar() < baz.qux:
+            print(b3)
+            print(b4)
+        elif 3 < a < 10:
+            print(b5)
+            print(b6)
+    
+    parse_tree:
         (if
-            (if-branch y3
-                (call print e5)
+            (if-branch (infix (infix 3 + 4) == 7)
+                (call print b1)
+                (call print b2)
+            )
+            (elif-branch (infix (infix (call foo) * (call bar)) < (lookup baz qux))
+                (call print b3)
+                (call print b4)
+            )
+            (elif-branch (infix 3 < a < 10)
+                (call print b5)
+                (call print b6)
+            )
+        )
+
+basic_if_elif_else:
+    code:
+        if c1:
+            print(c2)
+        elif c3:
+            print(c4)
+        else:
+            print(c5)
+    
+    parse_tree:
+        (if
+            (if-branch c1
+                (call print c2)
+            )
+            (elif-branch c3
+                (call print c4)
             )
             (else-branch
-                (call print e6)
+                (call print c5)
             )
         )
-        (call print e7)
-    )
-)
 
-(if
-    (if-branch (paren (infix a + b + c + d + e + f))
-        (call print f1)
-    )
-)
+if_with_comments:
+    code:
+        # If statement with comment
+        if true:
+            print(d1)
+            # And a nested comment
+            print(d2)
+        else:
+            print(d3)
+
+            print(d4)
+    
+    parse_tree:
+        # If statement with comment
+        (if
+            (if-branch true
+                (call print d1)
+                # And a nested comment
+                (call print d2)
+            )
+            (else-branch
+                (call print d3)
+
+                (call print d4)
+            )
+        )
+
+deeply_nested_if:
+    code:
+        if x1:
+            if y1:
+                print(e1)
+            elif y2:
+                print(e2)
+        elif x2:
+            print(e4)
+            if y3:
+                print(e5)
+            else:
+                print(e6)
+            print(e7)
+    
+    parse_tree:
+        (if
+            (if-branch x1
+                (if
+                    (if-branch y1
+                        (call print e1)
+                    )
+                    (elif-branch y2
+                        (call print e2)
+                    )
+                )
+            )
+            (elif-branch x2
+                (call print e4)
+                (if
+                    (if-branch y3
+                        (call print e5)
+                    )
+                    (else-branch
+                        (call print e6)
+                    )
+                )
+                (call print e7)
+            )
+        )
+
+multiline_if_condition:
+    code:
+        if (a + b + c
+            + d 
+                + e +
+                    f):
+            print(f1)
+    
+    parse_tree:
+        (if
+            (if-branch (paren (infix a + b + c + d + e + f))
+                (call print f1)
+            )
+        )

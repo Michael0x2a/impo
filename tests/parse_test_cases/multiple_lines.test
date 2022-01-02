@@ -1,21 +1,22 @@
-print("hello world")
+basic_statements:
+    code:
+        print("hello world")
 
-# One-line comment
-print(3 + 4)
+        # One-line comment
+        print(3 + 4)
 
-# Multi-line comment 1
-# Multi-line comment 2
-# Multi-line comment 3
-print(a.b.c(x, y, z))
+        # Multi-line comment 1
+        # Multi-line comment 2
+        # Multi-line comment 3
+        print(a.b.c(x, y, z))
 
----
+    parse_tree:
+        (call print "hello world")
 
-(call print "hello world")
+        # One-line comment
+        (call print (infix 3 + 4))
 
-# One-line comment
-(call print (infix 3 + 4))
-
-# Multi-line comment 1
-# Multi-line comment 2
-# Multi-line comment 3
-(call print (call (lookup a b c) x y z))
+        # Multi-line comment 1
+        # Multi-line comment 2
+        # Multi-line comment 3
+        (call print (call (lookup a b c) x y z))
